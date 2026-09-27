@@ -1,0 +1,13 @@
+# Binarios de Go
+*.exe
+*.exe.test
+*.out
+*.app
+*.o
+main
+client
+server
+
+# Directorios de compilación
+bin/
+dist/
