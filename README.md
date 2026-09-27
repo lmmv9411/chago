@@ -6,5 +6,5 @@ Un sistema cliente-servidor concurrente construido en Go utilizando JSON sobre s
 
 1. Iniciar el servidor:
    ```bash
-   go run cmd/server/main.go
+   go run main.go
    ```
