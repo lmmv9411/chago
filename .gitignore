@@ -4,9 +4,9 @@
 *.out
 *.app
 *.o
-
-chat
-mi-servidor
+main
+client
+server
 
 # Directorios de compilación
 bin/
