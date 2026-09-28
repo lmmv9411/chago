@@ -3,8 +3,9 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"mi-servidor/server"
 	"os"
+
+	"github.com/lmmv9411/chago/server"
 )
 
 func main() {
