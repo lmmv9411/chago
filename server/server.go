@@ -9,22 +9,6 @@ import (
 	"strings"
 )
 
-type eventType int
-
-const (
-	connection eventType = iota
-	disconnection
-	message
-	file
-)
-
-type event struct {
-	kind    eventType
-	address string
-	conn    net.Conn
-	message string
-}
-
 func StartServer() {
 
 	listener, err := net.Listen("tcp", ":8080")
@@ -38,8 +22,8 @@ func StartServer() {
 
 	fmt.Println("Servidor escuchando en el puerto 8080...")
 
-	events := make(chan event, 5)
-	go server(events)
+	Events := make(chan Event, 5)
+	go server(Events)
 
 	for {
 		conn, err := listener.Accept()
@@ -49,37 +33,37 @@ func StartServer() {
 			continue
 		}
 
-		e := event{
+		e := Event{
 			kind:    connection,
 			conn:    conn,
 			address: conn.RemoteAddr().String()}
 
-		events <- e
+		Events <- e
 
-		go handleConnection(conn, events)
+		go handleConnection(conn, Events)
 	}
 }
 
-func server(events <-chan event) {
+func server(events <-chan Event) {
 
 	users := make(map[string]net.Conn)
 
-	for event := range events {
+	for Event := range events {
 
-		switch event.kind {
+		switch Event.kind {
 		case connection:
-			users[event.address] = event.conn
+			users[Event.address] = Event.conn
 
 		case disconnection:
-			event.conn.Close()
-			delete(users, event.address)
+			Event.conn.Close()
+			delete(users, Event.address)
 
 		case message:
 
 			for direccion, conn := range users {
 
-				if direccion != event.address {
-					_, err := io.WriteString(conn, event.message)
+				if direccion != Event.address {
+					_, err := io.WriteString(conn, Event.message)
 					if err != nil {
 						fmt.Printf("Error al enviar mensaje a %s\n", direccion)
 					}
@@ -90,13 +74,13 @@ func server(events <-chan event) {
 
 }
 
-func handleConnection(conn net.Conn, events chan<- event) {
+func handleConnection(conn net.Conn, events chan<- Event) {
 
 	defer conn.Close()
 
 	reader := bufio.NewReader(conn)
 
-	e := event{
+	e := Event{
 		kind:    message,
 		address: conn.RemoteAddr().String(),
 		conn:    conn}
@@ -122,7 +106,7 @@ func handleConnection(conn net.Conn, events chan<- event) {
 
 			if err != nil {
 				fmt.Println(err)
-				events <- event{
+				events <- Event{
 					kind:    disconnection,
 					address: conn.RemoteAddr().String(),
 					conn:    conn,
@@ -137,7 +121,7 @@ func handleConnection(conn net.Conn, events chan<- event) {
 			data := strings.SplitN(line, ":", 2)
 			if len(data) != 2 {
 				fmt.Println("Error en protocolo de cabecera, no contiene par llave - valor.", data)
-				events <- event{
+				events <- Event{
 					kind:    disconnection,
 					address: conn.RemoteAddr().String(),
 					conn:    conn,
