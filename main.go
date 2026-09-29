@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/lmmv9411/chago/ejercicios"
 	"github.com/lmmv9411/chago/server"
 )
 
@@ -29,6 +30,8 @@ func main() {
 		server.StartServer()
 	case "client", "c":
 		server.StartClient()
+	case "read":
+		ejercicios.StartRead()
 	default:
 		fmt.Println("¡Opción inválida!")
 	}
