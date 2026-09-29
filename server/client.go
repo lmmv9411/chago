@@ -3,8 +3,10 @@ package server
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -55,26 +57,52 @@ func StartClient() {
 
 	go handleWrite(conn, user)
 
-	scanner := bufio.NewScanner(conn)
+	r := bufio.NewReader(conn)
 
-	for scanner.Scan() {
+	for {
+		headers := make(map[string]string)
+		for {
+			line, err := r.ReadString('\n')
 
-		byteMessages := scanner.Bytes()
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
 
-		msg, err := FromJson(byteMessages)
+			if line == "\n" {
+				break
+			}
+
+			data := strings.SplitN(line, ":", 2)
+			if len(data) != 2 {
+				fmt.Println("Error en protocolo de cabecera, no contiene par llave - valor.", data)
+				return
+			}
+			headers[strings.TrimSpace(data[0])] = strings.TrimSpace(data[1])
+		}
+
+		n, err := strconv.Atoi(headers["size"])
 
 		if err != nil {
-			fmt.Println("Error al deserializar json.", err)
+			fmt.Println(err)
 			continue
 		}
 
-		fmt.Printf("user   : %s\nmessage: %s\n\n", msg.Sender, msg.Content)
-	}
+		kind := headers["content-type"]
 
-	if err := scanner.Err(); err != nil {
-		fmt.Println("Error de lectura en la conexión:", err)
-	} else {
-		fmt.Println("El host remoto cerró la conexión (EOF).")
+		switch kind {
+		case "text/plain":
+			fmt.Println("---------------------------------------")
+			fmt.Printf("sender: %s\nmessage: ", headers["sender"])
+			_, err := io.CopyN(os.Stdout, r, int64(n))
+			fmt.Println()
+			fmt.Println("---------------------------------------")
+			if err != nil {
+				fmt.Println(err)
+			}
+		case "file":
+			fmt.Println("Por implementar...")
+		}
 	}
 
 }
@@ -92,21 +120,12 @@ func handleWrite(conn net.Conn, user string) {
 
 		mensaje := scanner.Text()
 
-		msg := Message{
-			Sender:  user,
-			Content: mensaje,
-			Type:    TypeText,
-			Size:    int64(len(mensaje)),
-		}
+		payload := "content-type:text/plain\n" +
+			"size:" + strconv.Itoa(len(mensaje)) + "\n" +
+			"sender:" + user + "\n\n" +
+			mensaje
 
-		bytesJson, err := msg.ToJson()
-
-		if err != nil {
-			fmt.Println("Error en serialización de json.")
-			break
-		}
-
-		_, err = conn.Write(append(bytesJson, '\n'))
+		_, err := conn.Write([]byte(payload))
 
 		if err != nil {
 			fmt.Println("Error enviando:", err)

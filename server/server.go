@@ -1,10 +1,12 @@
 package server
 
 import (
-	"errors"
+	"bufio"
 	"fmt"
 	"io"
 	"net"
+	"strconv"
+	"strings"
 )
 
 type eventType int
@@ -13,6 +15,7 @@ const (
 	connection eventType = iota
 	disconnection
 	message
+	file
 )
 
 type event struct {
@@ -76,9 +79,7 @@ func server(events <-chan event) {
 			for direccion, conn := range users {
 
 				if direccion != event.address {
-
 					_, err := io.WriteString(conn, event.message)
-
 					if err != nil {
 						fmt.Printf("Error al enviar mensaje a %s\n", direccion)
 					}
@@ -93,7 +94,7 @@ func handleConnection(conn net.Conn, events chan<- event) {
 
 	defer conn.Close()
 
-	buffer := make([]byte, 1024)
+	reader := bufio.NewReader(conn)
 
 	e := event{
 		kind:    message,
@@ -104,63 +105,77 @@ func handleConnection(conn net.Conn, events chan<- event) {
 
 	fmt.Printf("%s -> %s\n", msg, e.address)
 
-	msgJson := Message{
-		Sender:  "server",
-		Content: fmt.Sprintf("%s -> %s\n", msg, e.address),
-		Type:    TypeText,
-		Size:    int64(len(msg)),
-	}
+	payload := "content-type:text/plain\n" +
+		"size:" + strconv.Itoa(len(msg)) + "\n" +
+		"sender:servidor" + "\n\n" +
+		msg
 
-	txt, err := msgJson.ToJson()
-
-	if err != nil {
-		fmt.Println("Error serializar mensaje")
-		return
-	}
-
-	e.message = string(append(txt, '\n'))
-
+	e.message = payload
 	events <- e
 
 	for {
-		n, err := conn.Read(buffer)
-
-		if err != nil {
-
-			msg = fmt.Sprintf("Error: %s\n", err)
-
-			if errors.Is(err, io.EOF) {
-				msg = fmt.Sprintf("usuario %s cerró la conexión.\n", e.address)
-				e.kind = disconnection
-				events <- e
-			}
-
-			msgJson = Message{
-				Sender:  "server",
-				Content: msg,
-				Type:    TypeText,
-				Size:    int64(len(msg)),
-			}
-
-			txt, err := msgJson.ToJson()
+		var header strings.Builder
+		headers := make(map[string]string)
+		for {
+			line, err := reader.ReadString('\n')
+			header.WriteString(line)
 
 			if err != nil {
-				fmt.Println("Error serializar mensaje")
+				fmt.Println(err)
+				events <- event{
+					kind:    disconnection,
+					address: conn.RemoteAddr().String(),
+					conn:    conn,
+				}
 				return
 			}
 
-			e.message = string(append(txt, '\n'))
-			e.kind = message
-			events <- e
-			fmt.Print(msg)
-			break
+			if line == "\n" {
+				break
+			}
+
+			data := strings.SplitN(line, ":", 2)
+			if len(data) != 2 {
+				fmt.Println("Error en protocolo de cabecera, no contiene par llave - valor.", data)
+				events <- event{
+					kind:    disconnection,
+					address: conn.RemoteAddr().String(),
+					conn:    conn,
+				}
+				return
+			}
+			headers[strings.TrimSpace(data[0])] = strings.TrimSpace(data[1])
 		}
 
-		e.message = string(buffer[:n])
+		switch headers["content-type"] {
+		case "text/plain":
+			size, err := strconv.Atoi(headers["size"])
 
-		events <- e
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
 
-		fmt.Printf("%s: %s\n", e.address, e.message)
+			buffer := make([]byte, size)
+
+			_, err = io.ReadFull(reader, buffer)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			body := string(buffer)
+			header.WriteString(body)
+
+			e.message = header.String()
+
+			events <- e
+
+			fmt.Printf("%s-%s: %s\n", e.address, headers["sender"], body)
+		case "file":
+
+		}
 
 	}
+
 }
