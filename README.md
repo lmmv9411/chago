@@ -1,6 +1,6 @@
 # Chat TCP en Go
 
-Un sistema cliente-servidor concurrente construido en Go utilizando JSON sobre sockets TCP.
+Un sistema cliente-servidor concurrente construido en Go utilizando Protocolo head-body sobre sockets TCP.
 
 ## Cómo ejecutar
 

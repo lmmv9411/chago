@@ -6,7 +6,6 @@ import (
 	"io"
 	"net"
 	"strconv"
-	"strings"
 )
 
 func StartServer() {
@@ -85,50 +84,27 @@ func handleConnection(conn net.Conn, events chan<- Event) {
 		address: conn.RemoteAddr().String(),
 		conn:    conn}
 
-	msg := "nuevo usuario conectado"
+	bodyMessage := "nuevo usuario conectado"
 
-	fmt.Printf("%s -> %s\n", msg, e.address)
+	fmt.Printf("%s -> %s\n", bodyMessage, e.address)
 
-	payload := "content-type:text/plain\n" +
-		"size:" + strconv.Itoa(len(msg)) + "\n" +
-		"sender:servidor" + "\n\n" +
-		msg
+	headers := make(map[string]string)
 
-	e.message = payload
+	headers["content-type"] = "text/plain"
+	headers["size"] = strconv.Itoa(len(bodyMessage))
+	headers["sender"] = "servidor"
+
+	payload := BuildHeader(headers)
+
+	e.message = payload + bodyMessage
 	events <- e
 
 	for {
-		var header strings.Builder
-		headers := make(map[string]string)
-		for {
-			line, err := reader.ReadString('\n')
-			header.WriteString(line)
+		headers, header, err := ReadHeaders(reader)
 
-			if err != nil {
-				fmt.Println(err)
-				events <- Event{
-					kind:    disconnection,
-					address: conn.RemoteAddr().String(),
-					conn:    conn,
-				}
-				return
-			}
-
-			if line == "\n" {
-				break
-			}
-
-			data := strings.SplitN(line, ":", 2)
-			if len(data) != 2 {
-				fmt.Println("Error en protocolo de cabecera, no contiene par llave - valor.", data)
-				events <- Event{
-					kind:    disconnection,
-					address: conn.RemoteAddr().String(),
-					conn:    conn,
-				}
-				return
-			}
-			headers[strings.TrimSpace(data[0])] = strings.TrimSpace(data[1])
+		if err != nil {
+			fmt.Println(err)
+			return
 		}
 
 		switch headers["content-type"] {
@@ -143,6 +119,7 @@ func handleConnection(conn net.Conn, events chan<- Event) {
 			buffer := make([]byte, size)
 
 			_, err = io.ReadFull(reader, buffer)
+
 			if err != nil {
 				fmt.Println(err)
 				continue

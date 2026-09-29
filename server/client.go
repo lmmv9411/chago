@@ -110,6 +110,7 @@ func StartClient() {
 func handleWrite(conn net.Conn, user string) {
 
 	scanner := bufio.NewScanner(os.Stdin)
+	headers := make(map[string]string)
 
 	for scanner.Scan() {
 
@@ -118,14 +119,15 @@ func handleWrite(conn net.Conn, user string) {
 			continue
 		}
 
-		mensaje := scanner.Text()
+		bodyMessage := scanner.Text()
 
-		payload := "content-type:text/plain\n" +
-			"size:" + strconv.Itoa(len(mensaje)) + "\n" +
-			"sender:" + user + "\n\n" +
-			mensaje
+		headers["content-type"] = "text/plain"
+		headers["size"] = strconv.Itoa(len(bodyMessage))
+		headers["sender"] = user
 
-		_, err := conn.Write([]byte(payload))
+		header := BuildHeader(headers)
+
+		_, err := conn.Write([]byte(header + bodyMessage))
 
 		if err != nil {
 			fmt.Println("Error enviando:", err)
