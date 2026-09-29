@@ -60,25 +60,11 @@ func StartClient() {
 	r := bufio.NewReader(conn)
 
 	for {
-		headers := make(map[string]string)
-		for {
-			line, err := r.ReadString('\n')
+		headers, _, err := readHeaders(r)
 
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-
-			if line == "\n" {
-				break
-			}
-
-			data := strings.SplitN(line, ":", 2)
-			if len(data) != 2 {
-				fmt.Println("Error en protocolo de cabecera, no contiene par llave - valor.", data)
-				return
-			}
-			headers[strings.TrimSpace(data[0])] = strings.TrimSpace(data[1])
+		if err != nil {
+			fmt.Println(err)
+			return
 		}
 
 		n, err := strconv.Atoi(headers["size"])
@@ -123,7 +109,10 @@ func handleWrite(conn net.Conn, user string) {
 
 		switch bodyMessage {
 		case "/file":
-			sendFile(conn, user)
+			err := sendFile(conn, user, scanner)
+			if err != nil {
+				fmt.Println(err)
+			}
 		default:
 			headers["content-type"] = "text/plain"
 			headers["size"] = strconv.Itoa(len(bodyMessage))
@@ -134,7 +123,7 @@ func handleWrite(conn net.Conn, user string) {
 			_, err := conn.Write([]byte(header + bodyMessage))
 
 			if err != nil {
-				fmt.Println("Error enviando:", err)
+				fmt.Println("Error enviando mensaje:", err)
 				return
 			}
 		}

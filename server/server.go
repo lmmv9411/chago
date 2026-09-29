@@ -134,7 +134,7 @@ func handleConnection(conn net.Conn, events chan<- Event) {
 
 			fmt.Printf("%s-%s: %s\n", e.address, headers["sender"], body)
 		case "file":
-			_, err := handleFile(reader, headers)
+			err := handleFile(reader, headers)
 			if err != nil {
 				fmt.Println(err)
 				continue
