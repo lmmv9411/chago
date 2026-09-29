@@ -121,17 +121,22 @@ func handleWrite(conn net.Conn, user string) {
 
 		bodyMessage := scanner.Text()
 
-		headers["content-type"] = "text/plain"
-		headers["size"] = strconv.Itoa(len(bodyMessage))
-		headers["sender"] = user
+		switch bodyMessage {
+		case "/file":
+			sendFile(conn, user)
+		default:
+			headers["content-type"] = "text/plain"
+			headers["size"] = strconv.Itoa(len(bodyMessage))
+			headers["sender"] = user
 
-		header := BuildHeader(headers)
+			header := buildHeader(headers)
 
-		_, err := conn.Write([]byte(header + bodyMessage))
+			_, err := conn.Write([]byte(header + bodyMessage))
 
-		if err != nil {
-			fmt.Println("Error enviando:", err)
-			break
+			if err != nil {
+				fmt.Println("Error enviando:", err)
+				return
+			}
 		}
 
 	}

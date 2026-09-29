@@ -94,13 +94,13 @@ func handleConnection(conn net.Conn, events chan<- Event) {
 	headers["size"] = strconv.Itoa(len(bodyMessage))
 	headers["sender"] = "servidor"
 
-	payload := BuildHeader(headers)
+	payload := buildHeader(headers)
 
 	e.message = payload + bodyMessage
 	events <- e
 
 	for {
-		headers, header, err := ReadHeaders(reader)
+		headers, header, err := readHeaders(reader)
 
 		if err != nil {
 			fmt.Println(err)
@@ -134,7 +134,11 @@ func handleConnection(conn net.Conn, events chan<- Event) {
 
 			fmt.Printf("%s-%s: %s\n", e.address, headers["sender"], body)
 		case "file":
-
+			_, err := handleFile(reader, headers)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
 		}
 
 	}

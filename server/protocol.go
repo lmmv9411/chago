@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func ReadHeaders(r *bufio.Reader) (map[string]string, *strings.Builder, error) {
+func readHeaders(r *bufio.Reader) (map[string]string, *strings.Builder, error) {
 
 	headers := make(map[string]string)
 
@@ -37,7 +37,7 @@ func ReadHeaders(r *bufio.Reader) (map[string]string, *strings.Builder, error) {
 	return headers, &header, nil
 }
 
-func BuildHeader(headers map[string]string) string {
+func buildHeader(headers map[string]string) string {
 	var header strings.Builder
 
 	for key, value := range headers {
