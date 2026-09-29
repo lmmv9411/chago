@@ -22,11 +22,6 @@ type event struct {
 	message string
 }
 
-type user struct {
-	address string
-	message string
-}
-
 func StartServer() {
 
 	listener, err := net.Listen("tcp", ":8080")
