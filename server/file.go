@@ -10,36 +10,37 @@ import (
 	"strings"
 )
 
-func handleFile(reader *bufio.Reader, headers map[string]string) error {
+func handleFile(reader *bufio.Reader, headers map[string]string) (FileEvent, error) {
 
 	filename := headers["filename"]
 
 	size, err := strconv.ParseInt(headers["size"], 10, 64)
 
 	if err != nil {
-		return errors.New("Error al convertir size to int: " + headers["size"] + err.Error())
+		return FileEvent{}, errors.New("Error al convertir header size a int: " + headers["size"] + err.Error())
 	}
 
 	err = os.MkdirAll("./uploads", 0755)
 
 	if err != nil {
-		fmt.Printf("error al crear el directorio: %v\n", err)
-		return err
+		return FileEvent{}, errors.New("error al crear el directorio:" + err.Error())
 	}
 
 	file, err := os.Create("./uploads/" + filename)
 	if err != nil {
-		return errors.New("Error al crear fichero: " + filename + err.Error())
+		return FileEvent{}, errors.New("Error al crear fichero: " + filename + err.Error())
 	}
 
 	defer file.Close()
 
 	_, err = io.CopyN(file, reader, size)
 	if err != nil {
-		return errors.New("Error al copiar fichero: " + filename + err.Error())
+		return FileEvent{}, errors.New("Error al copiar fichero: " + filename + err.Error())
 	}
 
-	return nil
+	f := FileEvent{name: filename, size: size, path: "./uploads/" + filename}
+
+	return f, nil
 }
 
 func sendFile(writer io.Writer, user string, scanner *bufio.Scanner) error {

@@ -8,16 +8,20 @@ const (
 	connection EventType = iota
 	disconnection
 	message
+	file
 )
+
+type FileEvent struct {
+	name string
+	size int64
+	path string
+}
 
 type Event struct {
 	kind    EventType
 	address string
 	conn    net.Conn
 	message string
-}
-
-type Client struct {
-	Address string
-	Conn    net.Conn
+	user    string
+	file    FileEvent
 }

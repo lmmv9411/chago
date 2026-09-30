@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strconv"
 )
 
@@ -47,25 +48,58 @@ func server(events <-chan Event) {
 
 	users := make(map[string]net.Conn)
 
-	for Event := range events {
+	for event := range events {
 
-		switch Event.kind {
+		switch event.kind {
 		case connection:
-			users[Event.address] = Event.conn
+			users[event.address] = event.conn
 
 		case disconnection:
-			Event.conn.Close()
-			delete(users, Event.address)
+			event.conn.Close()
+			delete(users, event.address)
 
 		case message:
+			for address, conn := range users {
 
-			for direccion, conn := range users {
+				if address == event.address {
+					continue
+				}
 
-				if direccion != Event.address {
-					_, err := io.WriteString(conn, Event.message)
-					if err != nil {
-						fmt.Printf("Error al enviar mensaje a %s\n", direccion)
-					}
+				_, err := io.WriteString(conn, event.message)
+				if err != nil {
+					fmt.Printf("Error al enviar mensaje a %s\n", address)
+				}
+
+			}
+		case file:
+			file, err := os.Open(event.file.path)
+			if err != nil {
+				fmt.Println("Error abriendo fichero", err)
+				continue
+			}
+
+			defer file.Close()
+
+			headers := make(map[string]string)
+			headers["content-type"] = "file"
+			headers["filename"] = event.file.name
+			headers["size"] = strconv.FormatInt(event.file.size, 10)
+			headers["sender"] = event.user
+			header := buildHeader(headers)
+
+			for address, conn := range users {
+				if address == event.address {
+					continue
+				}
+				_, err := conn.Write([]byte(header))
+				if err != nil {
+					fmt.Println("Error escribiendo cabezeras de archivo.", err)
+					continue
+				}
+				_, err = io.CopyN(conn, file, event.file.size)
+				if err != nil {
+					fmt.Println("Error escribiendo bytes de archivo en cliente", err)
+					continue
 				}
 			}
 		}
@@ -79,9 +113,11 @@ func handleConnection(conn net.Conn, events chan<- Event) {
 
 	reader := bufio.NewReader(conn)
 
+	address := conn.RemoteAddr().String()
+
 	e := Event{
 		kind:    message,
-		address: conn.RemoteAddr().String(),
+		address: address,
 		conn:    conn}
 
 	bodyMessage := "nuevo usuario conectado"
@@ -128,18 +164,29 @@ func handleConnection(conn net.Conn, events chan<- Event) {
 			body := string(buffer)
 			header.WriteString(body)
 
+			e.kind = message
 			e.message = header.String()
+			e.user = headers["sender"]
 
 			events <- e
 
 			fmt.Printf("%s-%s: %s\n", e.address, headers["sender"], body)
 		case "file":
-			err := handleFile(reader, headers)
+
+			f, err := handleFile(reader, headers)
+
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
+
+			e.kind = file
+			e.user = headers["sender"]
+			e.file = f
+			events <- e
 		}
+
+		e = Event{address: address, conn: conn}
 
 	}
 
