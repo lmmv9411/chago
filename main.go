@@ -32,6 +32,10 @@ func main() {
 		server.StartClient()
 	case "read":
 		ejercicios.StartRead()
+	case "clousure":
+		ejercicios.InitClousure()
+	case "stream":
+		ejercicios.Stream()
 	default:
 		fmt.Println("¡Opción inválida!")
 	}
