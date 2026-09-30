@@ -139,6 +139,12 @@ func handleConnection(conn net.Conn, events chan<- Event) {
 		headers, header, err := readHeaders(reader)
 
 		if err != nil {
+			if err == io.EOF {
+				println("Usuario desconectado: " + address)
+				e.kind = disconnection
+				events <- e
+				return
+			}
 			fmt.Println(err)
 			return
 		}
