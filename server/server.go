@@ -78,8 +78,6 @@ func server(events <-chan Event) {
 				continue
 			}
 
-			defer file.Close()
-
 			headers := make(map[string]string)
 			headers["content-type"] = "file"
 			headers["filename"] = event.file.name
@@ -96,12 +94,23 @@ func server(events <-chan Event) {
 					fmt.Println("Error escribiendo cabezeras de archivo.", err)
 					continue
 				}
+
+				_, err = file.Seek(0, io.SeekStart)
+
+				if err != nil {
+					fmt.Println("Error reposicionando archivo:", err)
+					continue
+				}
+
 				_, err = io.CopyN(conn, file, event.file.size)
+
 				if err != nil {
 					fmt.Println("Error escribiendo bytes de archivo en cliente", err)
 					continue
 				}
 			}
+
+			file.Close()
 		}
 	}
 

@@ -68,8 +68,7 @@ func sendFile(writer io.Writer, user string, scanner *bufio.Scanner) error {
 	}
 
 	if info.IsDir() {
-		fmt.Println("la ruta especificada apunta a un directorio, no a un archivo")
-		return err
+		return errors.New("la ruta especificada apunta a un directorio, no a un archivo")
 	}
 
 	size := info.Size()
