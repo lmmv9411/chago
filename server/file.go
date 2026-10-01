@@ -44,9 +44,10 @@ func handleFile(reader *bufio.Reader, headers map[string]string) (FileEvent, err
 }
 
 type ProgressWriter struct {
-	total   int64
-	writer  io.Writer
-	written int64
+	total    int64
+	writer   io.Writer
+	written  int64
+	barWidth int
 }
 
 func (p *ProgressWriter) Write(data []byte) (int, error) {
@@ -57,12 +58,11 @@ func (p *ProgressWriter) Write(data []byte) (int, error) {
 
 	p.written += int64(n)
 	percentage := float64(p.written) / float64(p.total) * 100
-	barWidth := 30
-	filled := int((percentage / 100.0) * float64(barWidth))
+	filled := int((percentage / 100.0) * float64(p.barWidth))
 
 	fmt.Print("\r[")
 
-	for i := range barWidth {
+	for i := range p.barWidth {
 		if i < filled {
 			fmt.Print("█")
 		} else {
