@@ -77,25 +77,6 @@ func server(events <-chan Event) {
 				if address == event.address {
 					continue
 				}
-				/*_, err := conn.Write([]byte(header))
-				if err != nil {
-					fmt.Println("Error escribiendo cabezeras de archivo.", err)
-					continue
-				}
-
-				_, err = file.Seek(0, io.SeekStart)
-
-				if err != nil {
-					fmt.Println("Error reposicionando archivo:", err)
-					continue
-				}
-
-				_, err = io.CopyN(conn, file, event.file.size)
-
-				if err != nil {
-					fmt.Println("Error escribiendo bytes de archivo en cliente", err)
-					continue
-				}*/
 				client.out <- Outgoing{isFile: true, file: event.file}
 
 			}
