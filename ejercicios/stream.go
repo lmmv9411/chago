@@ -8,6 +8,8 @@ import (
 	"io"
 	"log"
 	"net"
+	"runtime"
+	"runtime/debug"
 	"time"
 )
 
@@ -24,22 +26,39 @@ func (p *ProgressWriter) Write(data []byte) (int, error) {
 	p.written += int64(n)
 
 	percentage := float64(p.written) / float64(p.total) * 100
+	barWith := 30
 
-	filled := int(percentage)
+	filled := int((percentage / 100.0) * float64(barWith))
+	currentStr := formatBytes(p.written)
+	totalStr := formatBytes(p.total)
 
 	fmt.Printf("\r[")
 
-	for i := range 100 {
+	for i := range barWith {
 		if i < filled {
-			fmt.Printf("█")
+			fmt.Print("█")
 		} else {
-			fmt.Printf("░")
+			fmt.Print("░")
 		}
 	}
 
-	fmt.Printf("] %.0f%%", percentage)
+	fmt.Printf("] %.0f%% | %s / %s", percentage, currentStr, totalStr)
 
 	return n, err
+}
+
+func formatBytes(b int64) string {
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	units := []string{"KiB", "MiB", "GiB", "TiB", "PiB"}
+	return fmt.Sprintf("%.2f %s", float64(b)/float64(div), units[exp])
 }
 
 func (fs *FileServer) start() {
@@ -52,7 +71,11 @@ func (fs *FileServer) start() {
 	fmt.Println("Server start on port :3000.")
 
 	for {
+
+		fmt.Println("waiting connection...")
 		conn, err := listener.Accept()
+		fmt.Println("connected to client!")
+
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -61,16 +84,17 @@ func (fs *FileServer) start() {
 
 }
 
-func (fs *FileServer) readLoop(conn net.Conn) {
+func (f *FileServer) readLoop(conn net.Conn) {
 
 	for {
-		var buff bytes.Buffer
+		//var buff bytes.Buffer
 		var size int64
+
 		err := binary.Read(conn, binary.LittleEndian, &size)
 
 		progress := &ProgressWriter{
 			total:  size,
-			writer: &buff,
+			writer: io.Discard,
 		}
 
 		if err != nil {
@@ -79,7 +103,7 @@ func (fs *FileServer) readLoop(conn net.Conn) {
 			} else {
 				fmt.Printf("error reading: %s\n", err)
 			}
-			return
+			break
 		}
 
 		n, err := io.CopyN(progress, conn, size)
@@ -136,10 +160,12 @@ func Stream() {
 
 	go func() {
 		time.Sleep(2 * time.Second)
-		err := sendFile(1024 * 1024 * 500) //500MiB
+		err := sendFile(1024 * 1024 * 500)
 		if err != nil {
 			log.Fatal(err)
 		}
+		runtime.GC()
+		debug.FreeOSMemory()
 	}()
 
 	server := FileServer{}
