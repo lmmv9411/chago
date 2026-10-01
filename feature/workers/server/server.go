@@ -46,29 +46,30 @@ func StartServer() {
 
 func server(events <-chan Event) {
 
-	users := make(map[string]net.Conn)
+	users := make(map[string]*Client)
 
 	for event := range events {
 
 		switch event.kind {
 		case connection:
-			users[event.address] = event.conn
+			users[event.address] = &Client{
+				conn: event.conn,
+				out:  make(chan Outgoing),
+			}
+			go Worker(users[event.address])
 
 		case disconnection:
 			event.conn.Close()
 			delete(users, event.address)
 
 		case message:
-			for address, conn := range users {
+			for address, client := range users {
 
 				if address == event.address {
 					continue
 				}
 
-				_, err := io.WriteString(conn, event.message)
-				if err != nil {
-					fmt.Printf("Error al enviar mensaje a %s\n", address)
-				}
+				client.out <- Outgoing{isFile: false, message: event.message}
 
 			}
 		case file:
@@ -85,11 +86,11 @@ func server(events <-chan Event) {
 			headers["sender"] = event.user
 			header := buildHeader(headers)
 
-			for address, conn := range users {
+			for address, client := range users {
 				if address == event.address {
 					continue
 				}
-				_, err := conn.Write([]byte(header))
+				/*_, err := conn.Write([]byte(header))
 				if err != nil {
 					fmt.Println("Error escribiendo cabezeras de archivo.", err)
 					continue
@@ -107,7 +108,14 @@ func server(events <-chan Event) {
 				if err != nil {
 					fmt.Println("Error escribiendo bytes de archivo en cliente", err)
 					continue
-				}
+				}*/
+
+				client.out <- Outgoing{
+					isFile: true,
+					header: header,
+					reader: file,
+					size:   event.file.size}
+
 			}
 
 			file.Close()
