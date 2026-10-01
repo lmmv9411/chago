@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"net"
@@ -20,14 +19,11 @@ type Client struct {
 	out  chan Outgoing
 }
 
-func Worker(client *Client) {
+func Worker(client Client) {
 
 	for o := range client.out {
 		if !o.isFile {
-			w := bufio.NewWriter(client.conn)
-			n, err := w.WriteString(o.message)
-			fmt.Println(n)
-			if err != nil {
+			if _, err := client.conn.Write([]byte(o.message)); err != nil {
 				fmt.Println("Error enviando stream message to client: ", err)
 				break
 			}

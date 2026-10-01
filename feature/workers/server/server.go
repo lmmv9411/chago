@@ -46,13 +46,13 @@ func StartServer() {
 
 func server(events <-chan Event) {
 
-	users := make(map[string]*Client)
+	users := make(map[string]Client)
 
 	for event := range events {
 
 		switch event.kind {
 		case connection:
-			users[event.address] = &Client{
+			users[event.address] = Client{
 				conn: event.conn,
 				out:  make(chan Outgoing),
 			}
