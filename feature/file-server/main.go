@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/lmmv9411/chago/feature/file-server/server"
-	"github.com/lmmv9411/chago/feature/file-server/server/ejercicios"
 )
 
 func main() {
@@ -30,12 +29,6 @@ func main() {
 		server.StartServer()
 	case "client", "c":
 		server.StartClient()
-	case "read":
-		ejercicios.StartRead()
-	case "clousure":
-		ejercicios.InitClousure()
-	case "stream":
-		ejercicios.Stream()
 	default:
 		fmt.Println("¡Opción inválida!")
 	}
