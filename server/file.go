@@ -130,8 +130,9 @@ func sendFile(writer io.Writer, user string, scanner *bufio.Scanner) error {
 
 	fmt.Println("Enviando archivo")
 	p := &ProgressWriter{
-		writer: writer,
-		total:  size,
+		writer:   writer,
+		total:    size,
+		barWidth: 30,
 	}
 
 	_, err = io.CopyN(p, file, size)
@@ -141,7 +142,7 @@ func sendFile(writer io.Writer, user string, scanner *bufio.Scanner) error {
 		return err
 	}
 
-	fmt.Println("Archivo enviado con éxito")
+	fmt.Println("\nArchivo enviado con éxito")
 	return nil
 }
 
@@ -170,8 +171,9 @@ func handleFileClient(headers map[string]string, r io.Reader) error {
 	defer file.Close()
 
 	p := &ProgressWriter{
-		writer: file,
-		total:  size,
+		writer:   file,
+		total:    size,
+		barWidth: 30,
 	}
 
 	_, err = io.CopyN(p, r, size)
@@ -180,7 +182,7 @@ func handleFileClient(headers map[string]string, r io.Reader) error {
 		return errors.New("Error al escribir bytes del stream en archivo: " + filename)
 	}
 
-	fmt.Println("Archivo recibido: " + filename)
+	fmt.Printf("\nsender: %s\nArchivo recibido: %s\n", sender, filename)
 
 	return nil
 }
