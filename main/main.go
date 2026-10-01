@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/lmmv9411/chago/ejercicios"
-	"github.com/lmmv9411/chago/server"
+	"github.com/lmmv9411/chago/main/server"
+	"github.com/lmmv9411/chago/main/server/ejercicios"
 )
 
 func main() {
