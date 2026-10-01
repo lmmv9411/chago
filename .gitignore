@@ -9,11 +9,9 @@ chat
 mi-servidor
 chago
 
-feature/workers/uploads/
-feature/file-server/uploads/
+uploads/
+downloads/
 
-feature/workers/downloads/
-feature/file-server/uploads
 
 # Directorios de compilación
 bin/
