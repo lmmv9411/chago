@@ -48,7 +48,6 @@ func server(events <-chan Event) {
 	users := make(map[string]Client)
 
 	for event := range events {
-
 		switch event.kind {
 		case connection:
 			users[event.address] = Client{
@@ -63,24 +62,18 @@ func server(events <-chan Event) {
 
 		case message:
 			for address, client := range users {
-
 				if address == event.address {
 					continue
 				}
-
 				client.out <- Outgoing{isFile: false, message: event.message}
-
 			}
 		case file:
-
 			for address, client := range users {
 				if address == event.address {
 					continue
 				}
 				client.out <- Outgoing{isFile: true, file: event.file}
-
 			}
-
 		}
 	}
 
