@@ -21,7 +21,7 @@ func StartServer() {
 
 	fmt.Println("Servidor escuchando en el puerto 8080...")
 
-	Events := make(chan Event, 5)
+	Events := make(chan Event, 10)
 	go server(Events)
 
 	for {
@@ -53,7 +53,7 @@ func server(events <-chan Event) {
 		case connection:
 			users[event.address] = Client{
 				conn: event.conn,
-				out:  make(chan Outgoing),
+				out:  make(chan Outgoing, 10),
 			}
 			go Worker(users[event.address])
 
