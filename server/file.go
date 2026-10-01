@@ -43,6 +43,38 @@ func handleFile(reader *bufio.Reader, headers map[string]string) (FileEvent, err
 	return f, nil
 }
 
+type ProgressWriter struct {
+	total   int64
+	writer  io.Writer
+	written int64
+}
+
+func (p *ProgressWriter) Write(data []byte) (int, error) {
+	n, err := p.writer.Write(data)
+	if err != nil {
+		return n, err
+	}
+
+	p.written += int64(n)
+	percentage := float64(p.written) / float64(p.total) * 100
+	barWidth := 30
+	filled := int((percentage / 100.0) * float64(barWidth))
+
+	fmt.Print("\r[")
+
+	for i := range barWidth {
+		if i < filled {
+			fmt.Print("█")
+		} else {
+			fmt.Print("░")
+		}
+	}
+
+	fmt.Printf("] %.0f%%", percentage)
+
+	return n, nil
+}
+
 func sendFile(writer io.Writer, user string, scanner *bufio.Scanner) error {
 
 	fmt.Print("Escribir ruta: ")
@@ -96,7 +128,13 @@ func sendFile(writer io.Writer, user string, scanner *bufio.Scanner) error {
 		return err
 	}
 
-	_, err = io.CopyN(writer, file, size)
+	fmt.Println("Enviando archivo")
+	p := &ProgressWriter{
+		writer: writer,
+		total:  size,
+	}
+
+	_, err = io.CopyN(p, file, size)
 
 	if err != nil {
 		fmt.Println("Error enviando archivo:", err)
@@ -104,5 +142,45 @@ func sendFile(writer io.Writer, user string, scanner *bufio.Scanner) error {
 	}
 
 	fmt.Println("Archivo enviado con éxito")
+	return nil
+}
+
+func handleFileClient(headers map[string]string, r io.Reader) error {
+	filename := headers["filename"]
+	size, err := strconv.ParseInt(headers["size"], 10, 64)
+	if err != nil {
+		return errors.New("Error parsing header size. " + err.Error())
+	}
+	sender := headers["sender"]
+
+	fmt.Println(sender + " envió archivo: " + filename)
+
+	err = os.MkdirAll("./downloads", 0755)
+
+	if err != nil {
+		return errors.New("Error al crear directorio downloads")
+	}
+
+	file, err := os.Create("./downloads/" + filename)
+
+	if err != nil {
+		return errors.New("Error al crear archivo: " + filename)
+	}
+
+	defer file.Close()
+
+	p := &ProgressWriter{
+		writer: file,
+		total:  size,
+	}
+
+	_, err = io.CopyN(p, r, size)
+
+	if err != nil {
+		return errors.New("Error al escribir bytes del stream en archivo: " + filename)
+	}
+
+	fmt.Println("Archivo recibido: " + filename)
+
 	return nil
 }

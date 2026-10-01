@@ -22,6 +22,9 @@ type ProgressWriter struct {
 
 func (p *ProgressWriter) Write(data []byte) (int, error) {
 	n, err := p.writer.Write(data)
+	if err != nil {
+		return n, err
+	}
 
 	p.written += int64(n)
 
@@ -48,11 +51,11 @@ func (p *ProgressWriter) Write(data []byte) (int, error) {
 }
 
 func formatBytes(b int64) string {
-	const unit = 1024
+	const unit int64 = 1024
 	if b < unit {
 		return fmt.Sprintf("%d B", b)
 	}
-	div, exp := int64(unit), 0
+	div, exp := unit, 0
 	for n := b / unit; n >= unit; n /= unit {
 		div *= unit
 		exp++
@@ -160,7 +163,7 @@ func Stream() {
 
 	go func() {
 		time.Sleep(2 * time.Second)
-		err := sendFile(1024 * 1024 * 500)
+		err := sendFile(1024 * 1024 * 1024 * 2)
 		if err != nil {
 			log.Fatal(err)
 		}

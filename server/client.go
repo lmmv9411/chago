@@ -87,40 +87,11 @@ func StartClient() {
 				fmt.Println(err)
 			}
 		case "file":
-			filename := headers["filename"]
-			size, err := strconv.ParseInt(headers["size"], 10, 64)
+			err = handleFileClient(headers, r)
 			if err != nil {
-				println("Error parsing header size", err)
+				fmt.Println(err)
 				continue
 			}
-			sender := headers["sender"]
-
-			fmt.Println(sender + " envió archivo: " + filename)
-
-			err = os.MkdirAll("./downloads", 0755)
-
-			if err != nil {
-				println("Error al crear directorio downloads")
-				continue
-			}
-
-			file, err := os.Create("./downloads/" + filename)
-
-			if err != nil {
-				println("Error al crear archivo: " + filename)
-				continue
-			}
-
-			defer file.Close()
-
-			_, err = io.CopyN(file, r, size)
-
-			if err != nil {
-				println("Error al escribir bytes del stream en archivo: " + filename)
-				continue
-			}
-
-			fmt.Println("Archivo recibido: " + filename)
 		}
 	}
 
