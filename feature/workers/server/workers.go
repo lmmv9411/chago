@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 )
 
 type Outgoing struct {
 	header  string
 	message string
-	reader  io.Reader
-	size    int64
+	file    FileEvent
 	isFile  bool
 }
 
@@ -28,16 +28,24 @@ func Worker(client Client) {
 				break
 			}
 		} else {
-			_, err := client.conn.Write([]byte(o.header))
+			file, err := os.Open(o.file.path)
+			if err != nil {
+				fmt.Println("Error abriendo fichero", err)
+				continue
+			}
+
+			_, err = client.conn.Write([]byte(o.file.headers))
 			if err != nil {
 				fmt.Println("Error enviando stream header to client: ", err)
 				break
 			}
-			_, err = io.CopyN(client.conn, o.reader, o.size)
+
+			_, err = io.CopyN(client.conn, file, o.file.size)
 			if err != nil {
 				fmt.Println("Error enviando stream body to client: ", err)
 				break
 			}
+			file.Close()
 		}
 	}
 }

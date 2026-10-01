@@ -38,7 +38,15 @@ func handleFile(reader *bufio.Reader, headers map[string]string) (FileEvent, err
 		return FileEvent{}, errors.New("Error al copiar fichero: " + filename + err.Error())
 	}
 
-	f := FileEvent{name: filename, size: size, path: "./uploads/" + filename}
+	headers["content-type"] = "file"
+	headers["filename"] = filename
+	headers["size"] = strconv.FormatInt(size, 10)
+	header := buildHeader(headers)
+
+	f := FileEvent{name: filename,
+		size:    size,
+		path:    "./uploads/" + filename,
+		headers: header}
 
 	return f, nil
 }

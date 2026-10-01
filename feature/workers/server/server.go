@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"strconv"
 )
 
@@ -73,18 +72,6 @@ func server(events <-chan Event) {
 
 			}
 		case file:
-			file, err := os.Open(event.file.path)
-			if err != nil {
-				fmt.Println("Error abriendo fichero", err)
-				continue
-			}
-
-			headers := make(map[string]string)
-			headers["content-type"] = "file"
-			headers["filename"] = event.file.name
-			headers["size"] = strconv.FormatInt(event.file.size, 10)
-			headers["sender"] = event.user
-			header := buildHeader(headers)
 
 			for address, client := range users {
 				if address == event.address {
@@ -109,16 +96,10 @@ func server(events <-chan Event) {
 					fmt.Println("Error escribiendo bytes de archivo en cliente", err)
 					continue
 				}*/
-
-				client.out <- Outgoing{
-					isFile: true,
-					header: header,
-					reader: file,
-					size:   event.file.size}
+				client.out <- Outgoing{isFile: true, file: event.file}
 
 			}
 
-			file.Close()
 		}
 	}
 
