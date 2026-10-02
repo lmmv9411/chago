@@ -14,8 +14,9 @@ type Outgoing struct {
 }
 
 type Client struct {
-	conn net.Conn
-	out  chan Outgoing
+	conn    net.Conn
+	out     chan Outgoing
+	address string
 }
 
 func worker(client Client, events chan<- Event) {
@@ -24,7 +25,7 @@ func worker(client Client, events chan<- Event) {
 		if !o.isFile {
 			if _, err := client.conn.Write([]byte(o.message)); err != nil {
 				fmt.Println("Error enviando stream message to client: ", err)
-				events <- Event{kind: disconnection}
+				events <- Event{kind: disconnection, address: client.address}
 				break
 			}
 		} else {
@@ -37,14 +38,16 @@ func worker(client Client, events chan<- Event) {
 			_, err = client.conn.Write([]byte(o.file.headers))
 			if err != nil {
 				fmt.Println("Error enviando stream header to client: ", err)
-				events <- Event{kind: disconnection}
+				events <- Event{kind: disconnection, address: client.address}
+				file.Close()
 				break
 			}
 
 			_, err = io.CopyN(client.conn, file, o.file.size)
 			if err != nil {
 				fmt.Println("Error enviando stream body to client: ", err)
-				events <- Event{kind: disconnection}
+				file.Close()
+				events <- Event{kind: disconnection, address: client.address}
 				break
 			}
 			file.Close()

@@ -51,8 +51,9 @@ func server(events chan Event) {
 		switch event.kind {
 		case connection:
 			users[event.address] = Client{
-				conn: event.conn,
-				out:  make(chan Outgoing, 10),
+				conn:    event.conn,
+				out:     make(chan Outgoing, 10),
+				address: event.address,
 			}
 			go worker(users[event.address], events)
 
