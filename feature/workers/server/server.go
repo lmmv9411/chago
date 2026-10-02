@@ -50,23 +50,31 @@ func server(events chan Event) {
 	for event := range events {
 		switch event.kind {
 		case connection:
+
 			users[event.address] = &Client{
 				conn:    event.conn,
 				out:     make(chan Outgoing, 10),
 				address: event.address,
 			}
+
 			go worker(users[event.address], events)
 
 		case disconnection:
+
 			client, ok := users[event.address]
+
 			if !ok || client == nil {
 				continue
 			}
-			close(client.out)
+
+			close(client.done)
+
 			client.conn.Close()
+
 			delete(users, event.address)
 
 		case message:
+
 			for address, client := range users {
 				if address == event.address {
 					continue
