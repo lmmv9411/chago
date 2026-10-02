@@ -55,12 +55,12 @@ func server(events chan Event) {
 				conn:    event.conn,
 				out:     make(chan Outgoing, 10),
 				address: event.address,
+				done:    make(chan struct{}),
 			}
 
 			go worker(users[event.address], events)
 
 		case disconnection:
-
 			client, ok := users[event.address]
 
 			if !ok || client == nil {
