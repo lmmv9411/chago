@@ -19,7 +19,7 @@ type Client struct {
 	address string
 }
 
-func worker(client Client, events chan<- Event) {
+func worker(client *Client, events chan<- Event) {
 
 	for o := range client.out {
 		if !o.isFile {

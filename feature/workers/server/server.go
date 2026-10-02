@@ -45,12 +45,12 @@ func StartServer() {
 
 func server(events chan Event) {
 
-	users := make(map[string]Client)
+	users := make(map[string]*Client)
 
 	for event := range events {
 		switch event.kind {
 		case connection:
-			users[event.address] = Client{
+			users[event.address] = &Client{
 				conn:    event.conn,
 				out:     make(chan Outgoing, 10),
 				address: event.address,
@@ -58,7 +58,10 @@ func server(events chan Event) {
 			go worker(users[event.address], events)
 
 		case disconnection:
-			client := users[event.address]
+			client, ok := users[event.address]
+			if !ok || client == nil {
+				continue
+			}
 			close(client.out)
 			event.conn.Close()
 			delete(users, event.address)
