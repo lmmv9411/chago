@@ -8,7 +8,6 @@ import (
 )
 
 type Outgoing struct {
-	header  string
 	message string
 	file    FileEvent
 	isFile  bool
@@ -19,7 +18,7 @@ type Client struct {
 	out  chan Outgoing
 }
 
-func Worker(client Client) {
+func worker(client Client) {
 
 	for o := range client.out {
 		if !o.isFile {

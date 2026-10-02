@@ -21,8 +21,8 @@ func StartServer() {
 
 	fmt.Println("Servidor escuchando en el puerto 8080...")
 
-	Events := make(chan Event, 10)
-	go server(Events)
+	events := make(chan Event, 10)
+	go server(events)
 
 	for {
 		conn, err := listener.Accept()
@@ -37,9 +37,9 @@ func StartServer() {
 			conn:    conn,
 			address: conn.RemoteAddr().String()}
 
-		Events <- e
+		events <- e
 
-		go handleConnection(conn, Events)
+		go handleConnection(conn, events)
 	}
 }
 
@@ -54,7 +54,7 @@ func server(events <-chan Event) {
 				conn: event.conn,
 				out:  make(chan Outgoing, 10),
 			}
-			go Worker(users[event.address])
+			go worker(users[event.address])
 
 		case disconnection:
 			event.conn.Close()
