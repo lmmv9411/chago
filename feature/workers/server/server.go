@@ -63,7 +63,7 @@ func server(events chan Event) {
 				continue
 			}
 			close(client.out)
-			event.conn.Close()
+			client.conn.Close()
 			delete(users, event.address)
 
 		case message:
