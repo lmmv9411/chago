@@ -43,7 +43,7 @@ func StartServer() {
 	}
 }
 
-func server(events <-chan Event) {
+func server(events chan Event) {
 
 	users := make(map[string]Client)
 
@@ -54,9 +54,11 @@ func server(events <-chan Event) {
 				conn: event.conn,
 				out:  make(chan Outgoing, 10),
 			}
-			go worker(users[event.address])
+			go worker(users[event.address], events)
 
 		case disconnection:
+			client := users[event.address]
+			close(client.out)
 			event.conn.Close()
 			delete(users, event.address)
 
