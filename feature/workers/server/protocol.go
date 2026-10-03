@@ -19,7 +19,7 @@ const (
 	maxFileNameSize   = 255
 	maxSenderSize     = 64
 	maxFileSize       = GiB
-	maxBodySize       = 10 * KiB
+	maxBodySize       = KiB
 )
 
 func readHeaders(r *bufio.Reader) (map[string]string, *strings.Builder, error) {
