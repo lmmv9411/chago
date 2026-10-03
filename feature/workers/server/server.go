@@ -21,7 +21,7 @@ func StartServer() {
 
 	fmt.Println("Servidor escuchando en el puerto 8080...")
 
-	events := make(chan Event, 10)
+	events := make(chan Event, 100)
 	go server(events)
 
 	for {
@@ -55,7 +55,7 @@ func server(events chan Event) {
 
 			newClient := &Client{
 				conn:    event.conn,
-				out:     make(chan Outgoing, 10),
+				out:     make(chan Outgoing, 100),
 				address: event.address,
 				done:    make(chan struct{}),
 			}
