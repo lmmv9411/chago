@@ -130,7 +130,6 @@ func handleConnection(conn net.Conn, events chan<- Event) {
 	for {
 
 		headers, header, err := readHeaders(reader)
-		sender := headers["sender"]
 
 		if err != nil {
 
@@ -141,6 +140,20 @@ func handleConnection(conn net.Conn, events chan<- Event) {
 			}
 
 			fmt.Println(err)
+			return
+		}
+
+		sender, ok := headers["sender"]
+
+		if !ok {
+			fmt.Println("Sin head 'Sender'")
+			events <- Event{kind: disconnection, address: address}
+			return
+		}
+
+		if len(sender) > maxSenderSize {
+			fmt.Println("Valor head de 'sender' excede limite tamaño")
+			events <- Event{kind: disconnection, address: address}
 			return
 		}
 
