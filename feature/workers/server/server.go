@@ -48,19 +48,24 @@ func server(events chan Event) {
 	users := make(map[string]*Client)
 
 	for event := range events {
+
 		switch event.kind {
+
 		case connection:
 
-			users[event.address] = &Client{
+			newClient := &Client{
 				conn:    event.conn,
 				out:     make(chan Outgoing, 10),
 				address: event.address,
 				done:    make(chan struct{}),
 			}
 
-			go worker(users[event.address], events)
+			users[event.address] = newClient
+
+			go worker(newClient, events)
 
 		case disconnection:
+
 			client, ok := users[event.address]
 
 			if !ok || client == nil {
@@ -81,7 +86,9 @@ func server(events chan Event) {
 				}
 				client.out <- Outgoing{isFile: false, message: event.message}
 			}
+
 		case file:
+
 			for address, client := range users {
 				if address == event.address {
 					continue
@@ -90,7 +97,6 @@ func server(events chan Event) {
 			}
 		}
 	}
-
 }
 
 func handleConnection(conn net.Conn, events chan<- Event) {
@@ -101,14 +107,9 @@ func handleConnection(conn net.Conn, events chan<- Event) {
 
 	address := conn.RemoteAddr().String()
 
-	e := Event{
-		kind:    message,
-		address: address,
-		conn:    conn}
-
 	bodyMessage := "nuevo usuario conectado"
 
-	fmt.Printf("%s -> %s\n", bodyMessage, e.address)
+	fmt.Printf("%s -> %s\n", bodyMessage, address)
 
 	headers := make(map[string]string)
 
@@ -118,24 +119,33 @@ func handleConnection(conn net.Conn, events chan<- Event) {
 
 	payload := buildHeader(headers)
 
-	e.message = payload + bodyMessage
+	e := Event{
+		kind:    message,
+		address: address,
+		message: payload + bodyMessage,
+	}
+
 	events <- e
 
 	for {
+
 		headers, header, err := readHeaders(reader)
+		sender := headers["sender"]
 
 		if err != nil {
+
+			events <- Event{kind: disconnection, address: address}
+
 			if err == io.EOF {
 				println("Usuario desconectado: " + address)
-				e.kind = disconnection
-				events <- e
-				return
 			}
+
 			fmt.Println(err)
 			return
 		}
 
 		switch headers["content-type"] {
+
 		case "text/plain":
 			size, err := strconv.Atoi(headers["size"])
 
@@ -156,14 +166,18 @@ func handleConnection(conn net.Conn, events chan<- Event) {
 			body := string(buffer)
 			header.WriteString(body)
 
-			e.kind = message
-			e.message = header.String()
-			e.user = headers["sender"]
+			events <- Event{
+				kind:    message,
+				message: header.String(),
+				user:    sender,
+				address: address,
+			}
 
-			events <- e
+			fmt.Printf("%s: %s\n", sender, body)
 
-			fmt.Printf("%s-%s: %s\n", e.address, headers["sender"], body)
 		case "file":
+
+			fmt.Printf("recibiendo archivo de: %s", sender)
 
 			f, err := handleFile(reader, headers)
 
@@ -172,13 +186,20 @@ func handleConnection(conn net.Conn, events chan<- Event) {
 				continue
 			}
 
-			e.kind = file
-			e.user = headers["sender"]
-			e.file = f
-			events <- e
-		}
+			events <- Event{
+				kind:    file,
+				user:    sender,
+				file:    f,
+				address: address,
+			}
 
-		e = Event{address: address, conn: conn}
+			fmt.Printf("%s enviando archivo %s\n", sender, f.name)
+
+		default:
+			fmt.Println("Content-type desconocido: ", headers["content-type"])
+			events <- Event{kind: disconnection, address: address}
+			return
+		}
 
 	}
 

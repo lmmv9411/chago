@@ -20,6 +20,10 @@ func handleFile(reader *bufio.Reader, headers map[string]string) (FileEvent, err
 		return FileEvent{}, errors.New("Error al convertir header size a int: " + headers["size"] + err.Error())
 	}
 
+	if size < 0 || size > maxBodySize {
+		return FileEvent{}, errors.New("archivo excede el tamaño máximo permitido")
+	}
+
 	err = os.MkdirAll("./uploads", 0755)
 
 	if err != nil {

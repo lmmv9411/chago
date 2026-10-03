@@ -7,19 +7,39 @@ import (
 	"strings"
 )
 
+const (
+	KiB = 1024
+	MiB = 1024 * KiB
+	GiB = 1024 * MiB
+)
+
+const (
+	maxHeaderLineSize = KiB
+	maxHeaderCount    = 16
+	maxFileNameSize   = 255
+	maxSenderSize     = 64
+	maxBodySize       = GiB
+)
+
 func readHeaders(r *bufio.Reader) (map[string]string, *strings.Builder, error) {
 
 	headers := make(map[string]string)
+	count := 0
 
 	var header strings.Builder
 
 	for {
 		line, err := r.ReadString('\n')
-		header.WriteString(line)
 
 		if err != nil {
 			return nil, nil, err
 		}
+
+		if len(line) > maxHeaderLineSize {
+			return nil, nil, errors.New("Máximo tamaño de linea header alcanzado.")
+		}
+
+		header.WriteString(line)
 
 		if line == "\n" {
 			break
@@ -28,10 +48,27 @@ func readHeaders(r *bufio.Reader) (map[string]string, *strings.Builder, error) {
 		data := strings.SplitN(line, ":", 2)
 
 		if len(data) != 2 {
-			return nil, nil, errors.New("Error en protocolo de cabecera, no contiene par llave - valor.")
+			return nil, nil, errors.New("Protocolo mal formado, key:value")
 		}
 
-		headers[strings.TrimSpace(data[0])] = strings.TrimSpace(data[1])
+		count++
+
+		if count > maxHeaderCount {
+			return nil, nil, errors.New("Máximo headers alcanzado")
+		}
+
+		key := strings.TrimSpace(data[0])
+		value := strings.TrimSpace(data[1])
+
+		if key == "" || value == "" {
+			return nil, nil, errors.New("header con key y value vacíos.")
+		}
+
+		if _, exists := headers[key]; exists {
+			return nil, nil, errors.New("header duplicado: " + key)
+		}
+
+		headers[key] = value
 	}
 
 	return headers, &header, nil
