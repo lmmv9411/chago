@@ -22,7 +22,7 @@ const (
 	maxBodySize       = KiB
 )
 
-func readHeaders(r *bufio.Reader) (map[string]string, *strings.Builder, error) {
+func ReadHeaders(r *bufio.Reader) (map[string]string, *strings.Builder, error) {
 
 	headers := make(map[string]string)
 	count := 0
@@ -75,7 +75,7 @@ func readHeaders(r *bufio.Reader) (map[string]string, *strings.Builder, error) {
 	return headers, &header, nil
 }
 
-func buildHeader(headers map[string]string) string {
+func BuildHeader(headers map[string]string) string {
 	var header strings.Builder
 
 	for key, value := range headers {
