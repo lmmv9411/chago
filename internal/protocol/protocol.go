@@ -36,7 +36,7 @@ func ReadHeaders(r *bufio.Reader) (map[string]string, *strings.Builder, error) {
 			return nil, nil, err
 		}
 
-		if len(line) > maxHeaderLineSize {
+		if len(line) > MaxHeaderLineSize {
 			return nil, nil, errors.New("Máximo tamaño de linea header alcanzado.")
 		}
 
@@ -54,7 +54,7 @@ func ReadHeaders(r *bufio.Reader) (map[string]string, *strings.Builder, error) {
 
 		count++
 
-		if count > maxHeaderCount {
+		if count > MaxHeaderCount {
 			return nil, nil, errors.New("Máximo headers alcanzado")
 		}
 
