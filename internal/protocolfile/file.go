@@ -1,0 +1,5 @@
+package protocolfile
+
+func ReadHeaders() {
+
+}

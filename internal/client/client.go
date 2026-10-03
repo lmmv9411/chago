@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lmmv9411/chago/internal/protocol"
+	"github.com/lmmv9411/chago/internal/protocolchat"
 )
 
 func StartClient() {
@@ -62,7 +62,7 @@ func StartClient() {
 	r := bufio.NewReader(conn)
 
 	for {
-		headers, _, err := protocol.ReadHeaders(r)
+		headers, _, err := protocolchat.ReadHeaders(r)
 
 		if err != nil {
 			fmt.Println(err)
@@ -124,7 +124,7 @@ func handleWrite(conn net.Conn, user string) {
 			headers["size"] = strconv.Itoa(len(bodyMessage))
 			headers["sender"] = user
 
-			header := protocol.BuildHeader(headers)
+			header := protocolchat.BuildHeader(headers)
 
 			_, err := conn.Write([]byte(header + bodyMessage))
 
