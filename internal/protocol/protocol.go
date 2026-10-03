@@ -1,4 +1,4 @@
-package server
+package protocol
 
 import (
 	"bufio"
@@ -14,12 +14,12 @@ const (
 )
 
 const (
-	maxHeaderLineSize = KiB
-	maxHeaderCount    = 16
-	maxFileNameSize   = 255
-	maxSenderSize     = 64
-	maxFileSize       = GiB
-	maxBodySize       = KiB
+	MaxHeaderLineSize = KiB
+	MaxHeaderCount    = 16
+	MaxFileNameSize   = 255
+	MaxSenderSize     = 64
+	MaxFileSize       = GiB
+	MaxBodySize       = KiB
 )
 
 func ReadHeaders(r *bufio.Reader) (map[string]string, *strings.Builder, error) {
