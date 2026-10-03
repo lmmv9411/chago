@@ -14,13 +14,17 @@ func handleFile(reader *bufio.Reader, headers map[string]string) (FileEvent, err
 
 	filename := headers["filename"]
 
+	if len(filename) > maxFileNameSize {
+		return FileEvent{}, errors.New("Tamaño de Filename excede limite")
+	}
+
 	size, err := strconv.ParseInt(headers["size"], 10, 64)
 
 	if err != nil {
 		return FileEvent{}, errors.New("Error al convertir header size a int: " + headers["size"] + err.Error())
 	}
 
-	if size < 0 || size > maxBodySize {
+	if size < 0 || size > maxFileSize {
 		return FileEvent{}, errors.New("archivo excede el tamaño máximo permitido")
 	}
 
