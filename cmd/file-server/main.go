@@ -1,1 +1,5 @@
-package fileserver
+package main
+
+func main() {
+
+}
