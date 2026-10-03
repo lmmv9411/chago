@@ -62,7 +62,7 @@ func readHeaders(r *bufio.Reader) (map[string]string, *strings.Builder, error) {
 		value := strings.TrimSpace(data[1])
 
 		if key == "" || value == "" {
-			return nil, nil, errors.New("header con key y value vacíos.")
+			return nil, nil, errors.New("header con key y/o value vacíos.")
 		}
 
 		if _, exists := headers[key]; exists {
