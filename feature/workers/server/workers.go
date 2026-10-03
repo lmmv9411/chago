@@ -42,7 +42,7 @@ func worker(client *Client, events chan<- Event) {
 				if _, err := client.conn.Write([]byte(o.message)); err != nil {
 					fmt.Println("Error enviando stream message to client: ", err)
 					events <- Event{kind: disconnection, address: client.address}
-					break
+					return
 				}
 			} else {
 				file, err := os.Open(o.file.path)
@@ -56,7 +56,7 @@ func worker(client *Client, events chan<- Event) {
 					fmt.Println("Error enviando stream header to client: ", err)
 					events <- Event{kind: disconnection, address: client.address}
 					file.Close()
-					break
+					return
 				}
 
 				_, err = io.CopyN(client.conn, file, o.file.size)
@@ -64,7 +64,7 @@ func worker(client *Client, events chan<- Event) {
 					fmt.Println("Error enviando stream body to client: ", err)
 					file.Close()
 					events <- Event{kind: disconnection, address: client.address}
-					break
+					return
 				}
 				file.Close()
 			}
