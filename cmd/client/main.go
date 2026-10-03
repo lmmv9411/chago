@@ -1,7 +1,7 @@
 package main
 
-import "github.com/lmmv9411/chago/internal/chat"
+import "github.com/lmmv9411/chago/internal/client"
 
 func main() {
-	chat.StartClient()
+	client.StartClient()
 }
