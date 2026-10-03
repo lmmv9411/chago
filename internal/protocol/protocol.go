@@ -10,15 +10,12 @@ import (
 const (
 	KiB = 1024
 	MiB = 1024 * KiB
-	GiB = 1024 * MiB
 )
 
 const (
 	MaxHeaderLineSize = KiB
 	MaxHeaderCount    = 16
-	MaxFileNameSize   = 255
 	MaxSenderSize     = 64
-	MaxFileSize       = GiB
 	MaxBodySize       = KiB
 )
 
