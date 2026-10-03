@@ -167,7 +167,7 @@ func handleConnection(conn net.Conn, events chan<- Event) {
 				continue
 			}
 
-			if size > maxBodySize {
+			if size < 0 || size > maxBodySize {
 				fmt.Println("Body mensaje exce Tamaño limite.")
 				events <- Event{kind: disconnection, address: address}
 				return
