@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/lmmv9411/chago/feature/file-server/server"
+	"github.com/lmmv9411/chago/feature/workers/server"
 )
 
 func main() {

@@ -12,9 +12,10 @@ const (
 )
 
 type FileEvent struct {
-	name string
-	size int64
-	path string
+	name    string
+	size    int64
+	path    string
+	headers string
 }
 
 type Event struct {
