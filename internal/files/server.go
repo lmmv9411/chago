@@ -91,6 +91,12 @@ func handleConnection(conn net.Conn) {
 		return
 	}
 
+	err = os.MkdirAll(filepath.Join(currentDir, "uploads"), 0755)
+
+	if err != nil {
+		return
+	}
+
 	safeFilename := filepath.Base(fileName)
 	filePath := filepath.Join(currentDir, "uploads", safeFilename)
 
@@ -98,12 +104,13 @@ func handleConnection(conn net.Conn) {
 	case "upload":
 
 		file, err := os.Create(filePath)
-		defer file.Close()
 
 		if err != nil {
 			fmt.Printf("Error al crear archivo %s, %s\n", fileName, err.Error())
 			return
 		}
+
+		defer file.Close()
 
 		_, err = io.CopyN(file, reader, size)
 
@@ -114,12 +121,12 @@ func handleConnection(conn net.Conn) {
 	case "download":
 
 		file, err := os.Open(filePath)
-		defer file.Close()
 
 		if err != nil {
 			fmt.Printf("Error al leer archivo %s, %s\n", fileName, err.Error())
 			return
 		}
+		defer file.Close()
 
 		_, err = io.CopyN(conn, file, size)
 
