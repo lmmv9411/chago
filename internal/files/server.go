@@ -24,13 +24,12 @@ type Server struct {
 }
 
 func NewServer(network string, address string) (*Server, error) {
+
 	listener, err := net.Listen(network, address)
 
 	if err != nil {
 		return nil, err
 	}
-
-	defer listener.Close()
 
 	return &Server{Listener: listener}, nil
 }
@@ -51,11 +50,13 @@ func (s *Server) CloseConn() error {
 
 func (s *Server) Accept() error {
 
-	if conn, err := s.Listener.Accept(); err != nil {
+	conn, err := s.Listener.Accept()
+
+	if err != nil {
 		return err
-	} else {
-		s.Conn = conn
 	}
+
+	s.Conn = conn
 
 	s.Writer = bufio.NewWriter(s.Conn)
 	s.Reader = bufio.NewReader(s.Conn)

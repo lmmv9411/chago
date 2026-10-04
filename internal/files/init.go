@@ -30,6 +30,7 @@ func StartServer() {
 		if err != nil {
 			fmt.Println("Error al aceptar la conexión: ", err)
 			continue
+		} else {
 		}
 
 		go handleConnection(server)
