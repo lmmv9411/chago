@@ -7,10 +7,23 @@ import (
 	"strings"
 )
 
+const (
+	KiB = 1024
+	MiB = 1024 * KiB
+	GiB = 1024 * MiB
+)
+
+const (
+	MaxHeaderLineSize = KiB
+	MaxHeaderCount    = 16
+	MaxBodySize       = GiB
+)
+
 func ReadHeaders(conn net.Conn) (map[string]string, error) {
 
 	reader := bufio.NewReader(conn)
 	headers := make(map[string]string)
+	count := 0
 
 	for {
 		line, err := reader.ReadString('\n')
@@ -19,8 +32,18 @@ func ReadHeaders(conn net.Conn) (map[string]string, error) {
 			return nil, errors.New("Error en lectura de header. " + err.Error())
 		}
 
+		if len(line) > MaxHeaderLineSize {
+			return nil, errors.New("linea header supera tamaño permitido.")
+		}
+
+		count++
+
 		if line == "\n" {
 			break
+		}
+
+		if count > MaxHeaderCount {
+			return nil, errors.New("lineas de header superan el maximo permitido.")
 		}
 
 		split := strings.SplitN(line, ":", 2)

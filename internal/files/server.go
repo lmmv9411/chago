@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/lmmv9411/chago/internal/protocolfile"
@@ -49,7 +50,7 @@ func handleConnection(conn net.Conn) {
 
 	fileName := headers["filename"]
 	sizeHeader := headers["size"]
-	event := headers["event"]
+	method := headers["method"]
 
 	size, err := strconv.ParseInt(sizeHeader, 10, 64)
 	if err != nil {
@@ -57,10 +58,25 @@ func handleConnection(conn net.Conn) {
 		return
 	}
 
-	switch event {
+	if size > protocolfile.MaxBodySize {
+		fmt.Println("Archivo supera tamaño maximo permitido")
+		return
+	}
+
+	//Por El momento en el directorio donde se ejecuta luego se centralizaria
+	currentDir, err := os.Getwd()
+	if err != nil {
+		fmt.Println("Error al obtener directorio: ", err)
+		return
+	}
+
+	safeFilename := filepath.Base(fileName)
+	filePath := filepath.Join(currentDir, "uploads", safeFilename)
+
+	switch method {
 	case "upload":
 
-		file, err := os.Create("../storage/uploads/" + fileName)
+		file, err := os.Create(filePath)
 
 		if err != nil {
 			fmt.Printf("Error al crear archivo %s, %s\n", fileName, err.Error())
@@ -74,7 +90,9 @@ func handleConnection(conn net.Conn) {
 			return
 		}
 	case "download":
-		file, err := os.Open("../storage/uploads/" + fileName)
+
+		file, err := os.Open(filePath)
+
 		if err != nil {
 			fmt.Printf("Error al leer archivo %s, %s\n", fileName, err.Error())
 			return
