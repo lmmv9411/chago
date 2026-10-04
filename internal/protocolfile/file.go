@@ -50,8 +50,8 @@ func ReadHeaders(reader *bufio.Reader) (map[string]string, error) {
 			return nil, errors.New("Formato incorrecto header key:value")
 		}
 
-		key := split[0]
-		value := split[1]
+		key := strings.TrimSpace(split[0])
+		value := strings.TrimSpace(split[1])
 
 		if key == "" || value == "" {
 			return nil, errors.New("Par key:value vacios en linea header")
