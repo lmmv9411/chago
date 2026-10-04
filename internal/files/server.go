@@ -58,14 +58,14 @@ func handleConnection(conn net.Conn) {
 		return
 	}
 
-	sizeHeader := headers["size"]
+	sizeHeader, ok := headers["size"]
 
 	if !ok {
 		fmt.Println("Sin header size")
 		return
 	}
 
-	method := headers["method"]
+	method, ok := headers["method"]
 
 	if !ok {
 		fmt.Println("Sin header method")
