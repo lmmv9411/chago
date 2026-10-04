@@ -57,7 +57,7 @@ func StartClient() {
 
 	fmt.Println("Conectado al servidor")
 
-	go handleWrite(conn, user)
+	go handleWrite(conn, user, ip)
 
 	r := bufio.NewReader(conn)
 
@@ -99,7 +99,7 @@ func StartClient() {
 
 }
 
-func handleWrite(conn net.Conn, user string) {
+func handleWrite(conn net.Conn, user string, ip string) {
 
 	scanner := bufio.NewScanner(os.Stdin)
 	headers := make(map[string]string)
@@ -115,10 +115,10 @@ func handleWrite(conn net.Conn, user string) {
 
 		switch bodyMessage {
 		case "/file":
-			// err := sendFile(conn, user, scanner)
-			// if err != nil {
-			// 	fmt.Println(err)
-			// }
+			err := sendFile(user, scanner, ip)
+			if err != nil {
+				fmt.Println(err)
+			}
 		default:
 			headers["content-type"] = "text/plain"
 			headers["size"] = strconv.Itoa(len(bodyMessage))
