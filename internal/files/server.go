@@ -2,147 +2,89 @@ package files
 
 import (
 	"bufio"
-	"fmt"
-	"io"
 	"net"
-	"os"
-	"path/filepath"
 	"strconv"
 
-	"github.com/lmmv9411/chago/internal/protocolfile"
+	"github.com/lmmv9411/chago/internal/protocolchat"
 )
 
-func StartServer() {
+type Status int
 
-	listener, err := net.Listen("tcp", ":8081")
+const (
+	Ok Status = iota
+	RequestError
+	InternalError
+)
+
+type Server struct {
+	Conn     net.Conn
+	Writer   *bufio.Writer
+	Reader   *bufio.Reader
+	Listener net.Listener
+}
+
+func NewServer(network string, address string) (*Server, error) {
+	listener, err := net.Listen(network, address)
 
 	if err != nil {
-		fmt.Println("Error al iniciar el servidor:", err)
-		return
+		return nil, err
 	}
 
 	defer listener.Close()
 
-	fmt.Println("Servidor archivos escuchando en el puerto 8081...")
-
-	for {
-		conn, err := listener.Accept()
-
-		if err != nil {
-			fmt.Println("Error al aceptar la conexión: ", err)
-			continue
-		}
-
-		go handleConnection(conn)
-	}
-
+	return &Server{Listener: listener}, nil
 }
 
-func handleConnection(conn net.Conn) {
+func (s *Server) CloseListener() error {
+	if s.Listener != nil {
+		return s.Listener.Close()
+	}
+	return nil
+}
 
-	defer conn.Close()
+func (s *Server) CloseConn() error {
+	if s.Conn != nil {
+		return s.Conn.Close()
+	}
+	return nil
+}
 
-	reader := bufio.NewReader(conn)
+func (s *Server) Accept() error {
 
-	headers, err := protocolfile.ReadHeaders(reader)
+	if conn, err := s.Listener.Accept(); err != nil {
+		return err
+	} else {
+		s.Conn = conn
+	}
+
+	s.Writer = bufio.NewWriter(s.Conn)
+	s.Reader = bufio.NewReader(s.Conn)
+
+	return nil
+}
+
+func (s *Server) SendError(msg string, code Status) error {
+	return s.send(msg, code)
+}
+
+func (s *Server) SendOk(msg string) error {
+	return s.send(msg, Ok)
+}
+
+func (s *Server) send(msg string, code Status) error {
+
+	headers := make(map[string]string)
+
+	headers["status"] = strconv.Itoa(int(code))
+	headers["message"] = msg
+
+	header := protocolchat.BuildHeader(headers)
+
+	_, err := s.Writer.Write([]byte(header))
 
 	if err != nil {
-		fmt.Println("Error en lecutra headers: ", err)
-		return
+		return err
 	}
 
-	fileName, ok := headers["filename"]
-
-	if !ok {
-		fmt.Println("Sin header filename")
-		return
-	}
-
-	sizeHeader, ok := headers["size"]
-
-	if !ok {
-		fmt.Println("Sin header size")
-		return
-	}
-
-	method, ok := headers["method"]
-
-	if !ok {
-		fmt.Println("Sin header method")
-		return
-	}
-
-	size, err := strconv.ParseInt(sizeHeader, 10, 64)
-
-	if err != nil {
-		fmt.Println("Error en parsing de size")
-		return
-	}
-
-	if size < 0 || size > protocolfile.MaxBodySize {
-		fmt.Println("Archivo con tamaño no permitido")
-		return
-	}
-
-	//Por El momento en el directorio donde se ejecuta luego se centralizaria
-	currentDir, err := os.Getwd()
-	if err != nil {
-		fmt.Println("Error al obtener directorio: ", err)
-		return
-	}
-
-	err = os.MkdirAll(filepath.Join(currentDir, "uploads"), 0755)
-
-	if err != nil {
-		return
-	}
-
-	safeFilename := filepath.Base(fileName)
-	filePath := filepath.Join(currentDir, "uploads", safeFilename)
-
-	switch method {
-	case "upload":
-
-		file, err := os.Create(filePath)
-
-		if err != nil {
-			fmt.Printf("Error al crear archivo %s, %s\n", fileName, err.Error())
-			return
-		}
-
-		defer file.Close()
-
-		_, err = io.CopyN(file, reader, size)
-
-		if err != nil {
-			fmt.Printf("Error al crear archivo %s, %s\n", fileName, err.Error())
-			return
-		}
-	case "download":
-
-		file, err := os.Open(filePath)
-
-		if err != nil {
-			fmt.Printf("Error al leer archivo %s, %s\n", fileName, err.Error())
-			return
-		}
-		defer file.Close()
-
-		info, err := os.Stat(filePath)
-
-		if err != nil {
-			fmt.Println("Error al acceder a info de archivo: " + err.Error())
-			return
-		}
-
-		_, err = io.CopyN(conn, file, info.Size())
-
-		if err != nil {
-			fmt.Printf("Error al crear archivo %s, %s\n", fileName, err.Error())
-			return
-		}
-	default:
-		fmt.Println("Método no existe: ", method)
-	}
-
+	return nil
 }
