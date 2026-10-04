@@ -128,7 +128,14 @@ func handleConnection(conn net.Conn) {
 		}
 		defer file.Close()
 
-		_, err = io.CopyN(conn, file, size)
+		info, err := os.Stat(filePath)
+
+		if err != nil {
+			fmt.Println("Error al acceder a info de archivo: " + err.Error())
+			return
+		}
+
+		_, err = io.CopyN(conn, file, info.Size())
 
 		if err != nil {
 			fmt.Printf("Error al crear archivo %s, %s\n", fileName, err.Error())
