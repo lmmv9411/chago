@@ -51,18 +51,36 @@ func handleConnection(conn net.Conn) {
 		return
 	}
 
-	fileName := headers["filename"]
+	fileName, ok := headers["filename"]
+
+	if !ok {
+		fmt.Println("Sin header filename")
+		return
+	}
+
 	sizeHeader := headers["size"]
+
+	if !ok {
+		fmt.Println("Sin header size")
+		return
+	}
+
 	method := headers["method"]
 
+	if !ok {
+		fmt.Println("Sin header method")
+		return
+	}
+
 	size, err := strconv.ParseInt(sizeHeader, 10, 64)
+
 	if err != nil {
 		fmt.Println("Error en parsing de size")
 		return
 	}
 
-	if size > protocolfile.MaxBodySize {
-		fmt.Println("Archivo supera tamaño maximo permitido")
+	if size < 0 || size > protocolfile.MaxBodySize {
+		fmt.Println("Archivo con tamaño no permitido")
 		return
 	}
 
@@ -80,6 +98,7 @@ func handleConnection(conn net.Conn) {
 	case "upload":
 
 		file, err := os.Create(filePath)
+		defer file.Close()
 
 		if err != nil {
 			fmt.Printf("Error al crear archivo %s, %s\n", fileName, err.Error())
@@ -95,6 +114,7 @@ func handleConnection(conn net.Conn) {
 	case "download":
 
 		file, err := os.Open(filePath)
+		defer file.Close()
 
 		if err != nil {
 			fmt.Printf("Error al leer archivo %s, %s\n", fileName, err.Error())
@@ -107,7 +127,8 @@ func handleConnection(conn net.Conn) {
 			fmt.Printf("Error al crear archivo %s, %s\n", fileName, err.Error())
 			return
 		}
-
+	default:
+		fmt.Println("Método no existe: ", method)
 	}
 
 }
