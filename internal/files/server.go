@@ -1,6 +1,7 @@
 package files
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"net"
@@ -41,7 +42,9 @@ func handleConnection(conn net.Conn) {
 
 	defer conn.Close()
 
-	headers, err := protocolfile.ReadHeaders(conn)
+	reader := bufio.NewReader(conn)
+
+	headers, err := protocolfile.ReadHeaders(reader)
 
 	if err != nil {
 		fmt.Println("Error en lecutra headers: ", err)
@@ -83,7 +86,7 @@ func handleConnection(conn net.Conn) {
 			return
 		}
 
-		_, err = io.CopyN(file, conn, size)
+		_, err = io.CopyN(file, reader, size)
 
 		if err != nil {
 			fmt.Printf("Error al crear archivo %s, %s\n", fileName, err.Error())

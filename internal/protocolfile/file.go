@@ -3,7 +3,6 @@ package protocolfile
 import (
 	"bufio"
 	"errors"
-	"net"
 	"strings"
 )
 
@@ -19,9 +18,8 @@ const (
 	MaxBodySize       = GiB
 )
 
-func ReadHeaders(conn net.Conn) (map[string]string, error) {
+func ReadHeaders(reader *bufio.Reader) (map[string]string, error) {
 
-	reader := bufio.NewReader(conn)
 	headers := make(map[string]string)
 	count := 0
 
