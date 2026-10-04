@@ -48,20 +48,22 @@ func (s *Server) CloseConn() error {
 	return nil
 }
 
-func (s *Server) Accept() error {
+func (s *Server) Accept() (*Server, error) {
 
 	conn, err := s.Listener.Accept()
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	s.Conn = conn
+	connection := &Server{
+		Conn:     conn,
+		Writer:   bufio.NewWriter(conn),
+		Reader:   bufio.NewReader(conn),
+		Listener: s.Listener,
+	}
 
-	s.Writer = bufio.NewWriter(s.Conn)
-	s.Reader = bufio.NewReader(s.Conn)
-
-	return nil
+	return connection, nil
 }
 
 func (s *Server) SendError(msg string, code Status) error {
@@ -87,5 +89,5 @@ func (s *Server) send(msg string, code Status) error {
 		return err
 	}
 
-	return nil
+	return s.Writer.Flush()
 }

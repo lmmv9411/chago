@@ -19,23 +19,21 @@ func StartServer() {
 		return
 	}
 
-	defer server.CloseConn()
+	defer server.CloseListener()
 
 	fmt.Println("Servidor archivos escuchando en el puerto 8081...")
 
 	for {
 
-		err := server.Accept()
+		connection, err := server.Accept()
 
 		if err != nil {
 			fmt.Println("Error al aceptar la conexión: ", err)
 			continue
-		} else {
 		}
 
-		go handleConnection(server)
+		go handleConnection(connection)
 	}
-
 }
 
 func handleConnection(s *Server) {
@@ -138,6 +136,9 @@ func handleConnection(s *Server) {
 			s.SendError(msg, InternalError)
 			return
 		}
+
+		s.SendOk("Archivo recibido")
+
 	case "download":
 
 		file, err := os.Open(filePath)

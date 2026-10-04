@@ -29,6 +29,7 @@ func sendFile(scanner *bufio.Scanner) error {
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 
 	info, err := os.Stat(filePath)
 
@@ -48,73 +49,64 @@ func sendFile(scanner *bufio.Scanner) error {
 
 	headersStr := protocolchat.BuildHeader(headers)
 
-	go sendToServer(headersStr, file, info.Size())
-
-	return nil
+	return sendToServer(headersStr, file, info.Size())
 }
 
-func sendToServer(header string, file *os.File, size int64) {
-
-	defer file.Close()
-
+func sendToServer(header string, file *os.File, size int64) error {
 	conn, err := net.Dial("tcp", Ip+":8081")
 
 	if err != nil {
-		fmt.Println("Error al conectar a servidor files: " + err.Error())
-		return
+		return fmt.Errorf("Error al conectar a servidor files: %w", err)
 	}
-
 	defer conn.Close()
 
 	_, err = conn.Write([]byte(header))
 
-	if !isOk(conn) {
-		return
-	}
-
 	if err != nil {
-		fmt.Println("Error al enviar header al servidor-files: " + err.Error())
-		return
+		return fmt.Errorf("Error al enviar header al servidor-files: %w", err)
 	}
 
 	progress := &ProgressWriter{writer: conn}
 
 	_, err = io.CopyN(progress, file, size)
 
-	if !isOk(conn) {
-		return
-	}
-
 	if err != nil {
-		fmt.Println("Error al enviar archivo al servidor-files: " + err.Error())
-		return
+		return fmt.Errorf("Error al enviar archivo al servidor-files: %w", err)
 	}
 
-	fmt.Println("Archivo enviado.")
+	if err := isOk(conn); err != nil {
+		return err
+	}
+
+	fmt.Println("\nArchivo enviado y recibido por el servidor.")
+	return nil
 }
 
-func isOk(conn net.Conn) bool {
-
+func isOk(conn net.Conn) error {
 	r := bufio.NewReader(conn)
 
 	headers, _, err := protocolchat.ReadHeaders(r)
 
 	if err != nil {
-		fmt.Println(err)
+		return fmt.Errorf("Error al leer respuesta del servidor: %w", err)
 	}
 
-	code, err := strconv.Atoi(headers["status"])
+	status, ok := headers["status"]
 
+	if !ok {
+		return errors.New("respuesta del servidor sin status")
+	}
+
+	code, err := strconv.Atoi(status)
 	if err != nil {
-		fmt.Println(err)
+		return fmt.Errorf("status inválido en respuesta del servidor: %w", err)
 	}
 
 	if files.Status(code) != files.Ok {
-		fmt.Printf("%s: %s\n", headers["status"], headers["message"])
-		return false
+		return fmt.Errorf("servidor respondió %s: %s", status, headers["message"])
 	}
 
-	return true
+	return nil
 }
 
 type ProgressWriter struct {
