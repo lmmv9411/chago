@@ -12,7 +12,7 @@ import (
 	"github.com/lmmv9411/chago/internal/protocolchat"
 )
 
-func sendFile(user string, scanner *bufio.Scanner, ip string) error {
+func sendFile(scanner *bufio.Scanner) error {
 
 	fmt.Print("Escribir ruta de archivo:")
 	scanner.Scan()
@@ -47,14 +47,14 @@ func sendFile(user string, scanner *bufio.Scanner, ip string) error {
 
 	headersStr := protocolchat.BuildHeader(headers)
 
-	go sendToServer(headersStr, file, ip, info.Size())
+	go sendToServer(headersStr, file, info.Size())
 
 	return nil
 }
 
-func sendToServer(header string, file *os.File, ip string, size int64) {
+func sendToServer(header string, file *os.File, size int64) {
 	defer file.Close()
-	conn, err := net.Dial("tcp", ip+":8081")
+	conn, err := net.Dial("tcp", Ip+":8081")
 	if err != nil {
 		fmt.Println("Error al conectar a servidor files: " + err.Error())
 		return
@@ -62,9 +62,16 @@ func sendToServer(header string, file *os.File, ip string, size int64) {
 	defer conn.Close()
 
 	_, err = conn.Write([]byte(header))
+
 	if err != nil {
-		fmt.Println("Error al escribir en servidor files: " + err.Error())
+		fmt.Println("Error al enviar header al servidor-files: " + err.Error())
 		return
 	}
-	io.CopyN(conn, file, size)
+
+	_, err = io.CopyN(conn, file, size)
+
+	if err != nil {
+		fmt.Println("Error al enviar archivo al servidor-files: " + err.Error())
+		return
+	}
 }

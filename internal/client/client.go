@@ -12,28 +12,30 @@ import (
 	"github.com/lmmv9411/chago/internal/protocolchat"
 )
 
+var Ip string
+
 func StartClient() {
 
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Print("Escribir direccion ip ó [ y ] para usar por defecto: ")
 
-	ip, err := reader.ReadString('\n')
+	Ip, err := reader.ReadString('\n')
 
 	if err != nil {
 		fmt.Println("Error al leer ip", err)
 		return
 	}
 
-	ip = strings.TrimSpace(ip)
+	Ip = strings.TrimSpace(Ip)
 
-	if ip != "y" {
-		if net.ParseIP(ip) == nil {
+	if Ip != "y" {
+		if net.ParseIP(Ip) == nil {
 			fmt.Println("¡Dirección ip inválida!...")
 			return
 		}
 	} else {
-		ip = "192.168.1.33"
+		Ip = "192.168.1.33"
 	}
 
 	fmt.Print("Escribir usuario: ")
@@ -46,7 +48,7 @@ func StartClient() {
 		return
 	}
 
-	conn, err := net.Dial("tcp", ip+":8080")
+	conn, err := net.Dial("tcp", Ip+":8080")
 
 	if err != nil {
 		fmt.Println("Error al conectar:", err)
@@ -57,7 +59,7 @@ func StartClient() {
 
 	fmt.Println("Conectado al servidor")
 
-	go handleWrite(conn, user, ip)
+	go handleWrite(conn, user)
 
 	r := bufio.NewReader(conn)
 
@@ -99,7 +101,7 @@ func StartClient() {
 
 }
 
-func handleWrite(conn net.Conn, user string, ip string) {
+func handleWrite(conn net.Conn, user string) {
 
 	scanner := bufio.NewScanner(os.Stdin)
 	headers := make(map[string]string)
@@ -115,7 +117,7 @@ func handleWrite(conn net.Conn, user string, ip string) {
 
 		switch bodyMessage {
 		case "/file":
-			err := sendFile(user, scanner, ip)
+			err := sendFile(scanner)
 			if err != nil {
 				fmt.Println(err)
 			}
