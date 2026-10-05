@@ -63,26 +63,26 @@ func sendToServer(header string, file *os.File, size int64) error {
 
 	_, err = conn.Write([]byte(header))
 
+	if err != nil {
+		return fmt.Errorf("Error al enviar header al servidor-files: %w", err)
+	}
+
 	if err := isOk(conn); err != nil {
 		fmt.Println(err)
 		return err
-	}
-
-	if err != nil {
-		return fmt.Errorf("Error al enviar header al servidor-files: %w", err)
 	}
 
 	progress := &ProgressWriter{writer: conn, total: size, barWidth: 30}
 
 	_, err = io.CopyN(progress, file, size)
 
+	if err != nil {
+		return fmt.Errorf("Error al enviar archivo al servidor-files: %w", err)
+	}
+
 	if err := isOk(conn); err != nil {
 		fmt.Println(err)
 		return err
-	}
-
-	if err != nil {
-		return fmt.Errorf("Error al enviar archivo al servidor-files: %w", err)
 	}
 
 	fmt.Println("\nArchivo enviado y recibido por el servidor.")
