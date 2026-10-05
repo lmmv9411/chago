@@ -5,9 +5,9 @@
 *.app
 *.o
 
-chat
-mi-servidor
-chago
+client
+serverchat
+serverfile
 
 uploads/
 downloads/

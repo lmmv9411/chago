@@ -37,6 +37,12 @@ func worker(c *Client, e chan<- Event) {
 				return
 			}
 
+			if err := c.conn.Writer.Flush(); err != nil {
+				fmt.Println("Error enviando stream message to client: ", err)
+				e <- Event{kind: disconnection, address: c.address}
+				return
+			}
+
 		}
 	}
 }
