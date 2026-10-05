@@ -127,5 +127,6 @@ func (s *Connection) send(msg string, code Status) error {
 	header := protocolchat.BuildHeader(headers)
 
 	_, err := s.Write([]byte(header))
+	s.Writer.Flush()
 	return err
 }
