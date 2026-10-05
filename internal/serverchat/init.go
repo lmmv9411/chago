@@ -175,7 +175,8 @@ func handleConnection(conn *Connection, events chan<- Event) {
 				msg := "Error en cast de header size: " + err.Error()
 				fmt.Println(msg)
 				conn.SendError(msg, RequestError)
-				continue
+				events <- Event{kind: disconnection, address: address}
+				return
 			}
 
 			if size < 0 || size > MaxBodySize {
@@ -191,8 +192,11 @@ func handleConnection(conn *Connection, events chan<- Event) {
 			_, err = io.ReadFull(conn.Reader, buffer)
 
 			if err != nil {
-				fmt.Println(err)
-				continue
+				msg := "Error leyendo buffer body: " + err.Error()
+				fmt.Println(msg)
+				conn.SendError(msg, InternalError)
+				events <- Event{kind: disconnection, address: address}
+				return
 			}
 
 			body := string(buffer)
