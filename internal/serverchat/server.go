@@ -5,6 +5,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/lmmv9411/chago/internal/protocolchat"
 )
@@ -24,9 +25,10 @@ const (
 )
 
 type Connection struct {
-	conn   net.Conn
-	Writer *bufio.Writer
-	Reader *bufio.Reader
+	conn    net.Conn
+	Writer  *bufio.Writer
+	Reader  *bufio.Reader
+	writeMu sync.Mutex
 }
 
 type Server struct {
@@ -56,6 +58,8 @@ func (c *Connection) BuildHeader(headers map[string]string) string {
 }
 
 func (c *Connection) Write(buffer []byte) (int, error) {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
 
 	n, err := c.Writer.Write(buffer)
 	if err != nil {
@@ -100,15 +104,18 @@ func (s *Server) Accept() (*Connection, error) {
 	return connection, nil
 }
 
-func (s *Connection) createError(msg string, code Status) string {
-	return s.create(msg, code)
+func (s *Connection) SendError(msg string, code Status) error {
+	return s.send(msg, code)
 }
 
-func (s *Connection) createOk(msg string) string {
-	return s.create(msg, Ok)
+func (s *Connection) SendOk(msg string) error {
+	return s.send(msg, Ok)
 }
 
-func (s *Connection) create(msg string, code Status) string {
+func (s *Connection) send(msg string, code Status) error {
+
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 
 	headers := make(map[string]string)
 
@@ -119,5 +126,6 @@ func (s *Connection) create(msg string, code Status) string {
 
 	header := protocolchat.BuildHeader(headers)
 
-	return header
+	_, err := s.Write([]byte(header))
+	return err
 }
