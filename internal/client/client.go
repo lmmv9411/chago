@@ -107,6 +107,13 @@ func StartClient() {
 			}
 		case "file/notification":
 			go downloadFile(headers)
+		case "response":
+			if msg, err := response(headers); err != nil {
+				fmt.Println(err)
+				return
+			} else {
+				fmt.Println(*msg)
+			}
 		default:
 			fmt.Println("Error de cabezera 'content-type'= ¡no reconocido!")
 		}
@@ -151,6 +158,7 @@ func handleWrite(conn net.Conn) {
 				fmt.Println("Error enviando mensaje: ", err)
 				return
 			}
+
 		}
 
 	}

@@ -2,218 +2,118 @@ package serverchat
 
 import (
 	"bufio"
-	"fmt"
-	"io"
 	"net"
 	"strconv"
+	"strings"
 
 	"github.com/lmmv9411/chago/internal/protocolchat"
 )
 
-func StartServer() {
+const (
+	KiB           = 1024
+	MaxSenderSize = 64
+	MaxBodySize   = KiB
+)
 
-	listener, err := net.Listen("tcp", ":8080")
+type Status int
+
+const (
+	Ok Status = iota
+	RequestError
+	InternalError
+)
+
+type Connection struct {
+	conn   net.Conn
+	Writer *bufio.Writer
+	Reader *bufio.Reader
+}
+
+type Server struct {
+	listener net.Listener
+}
+
+func NewServer(network string, address string) (*Server, error) {
+	listener, err := net.Listen(network, address)
 
 	if err != nil {
-		fmt.Println("Error al iniciar el servidor:", err)
-		return
+		return nil, err
 	}
 
-	defer listener.Close()
-
-	fmt.Println("Servidor chat escuchando en el puerto 8080...")
-
-	events := make(chan Event, 10)
-	go server(events)
-
-	for {
-		conn, err := listener.Accept()
-
-		if err != nil {
-			fmt.Println("Error al aceptar la conexión:", err)
-			continue
-		}
-
-		e := Event{
-			kind:    connection,
-			conn:    conn,
-			address: conn.RemoteAddr().String()}
-
-		events <- e
-
-		go handleConnection(conn, events)
-	}
+	return &Server{listener: listener}, nil
 }
 
-func server(events chan Event) {
-
-	users := make(map[string]*Client)
-
-	for event := range events {
-
-		switch event.kind {
-
-		case connection:
-
-			newClient := &Client{
-				conn:    event.conn,
-				out:     make(chan *Outgoing, maxQueue),
-				address: event.address,
-				done:    make(chan struct{}),
-			}
-
-			users[event.address] = newClient
-
-			go worker(newClient, events)
-
-		case disconnection:
-
-			client, ok := users[event.address]
-
-			if !ok || client == nil {
-				continue
-			}
-
-			close(client.done)
-			close(client.out)
-
-			client.conn.Close()
-
-			delete(users, event.address)
-
-		case message:
-			for address, client := range users {
-				if address == event.address {
-					continue
-				}
-				select {
-				case client.out <- &Outgoing{message: event.message}:
-				default:
-					events <- Event{
-						kind:    disconnection,
-						address: client.address,
-					}
-				}
-
-			}
-
-		}
-	}
+func (c *Connection) RemoteAddress() string {
+	return c.conn.RemoteAddr().String()
 }
 
-func handleConnection(conn net.Conn, events chan<- Event) {
+func (c *Connection) ReadHeaders() (map[string]string, *strings.Builder, error) {
+	return protocolchat.ReadHeaders(c.Reader)
+}
 
-	defer conn.Close()
+func (c *Connection) BuildHeader(headers map[string]string) string {
+	return protocolchat.BuildHeader(headers)
+}
 
-	reader := bufio.NewReader(conn)
+func (c *Connection) Write(buffer []byte) (int, error) {
+	return c.Writer.Write(buffer)
+}
 
-	address := conn.RemoteAddr().String()
+func (s *Server) CloseListener() error {
+	if s.listener != nil {
+		return s.listener.Close()
+	}
+	return nil
+}
 
-	bodyMessage := "nuevo usuario conectado"
+func (s *Connection) CloseConn() error {
+	if s.conn != nil {
+		return s.conn.Close()
+	}
+	return nil
+}
 
-	fmt.Printf("%s -> %s\n", bodyMessage, address)
+func (s *Server) Accept() (*Connection, error) {
+
+	conn, err := s.listener.Accept()
+
+	if err != nil {
+		return nil, err
+	}
+
+	connection := &Connection{
+		conn:   conn,
+		Writer: bufio.NewWriter(conn),
+		Reader: bufio.NewReader(conn),
+	}
+
+	return connection, nil
+}
+
+func (s *Connection) SendError(msg string, code Status) error {
+	return s.send(msg, code)
+}
+
+func (s *Connection) SendOk(msg string) error {
+	return s.send(msg, Ok)
+}
+
+func (s *Connection) send(msg string, code Status) error {
 
 	headers := make(map[string]string)
 
-	headers["content-type"] = "text/plain"
-	headers["size"] = strconv.Itoa(len(bodyMessage))
-	headers["sender"] = "servidor"
+	headers["content-type"] = "response"
+	headers["status"] = strconv.Itoa(int(code))
+	headers["size"] = strconv.Itoa(len(msg))
+	headers["message"] = msg
 
-	payload := protocolchat.BuildHeader(headers)
+	header := protocolchat.BuildHeader(headers)
 
-	events <- Event{
-		kind:    message,
-		address: address,
-		message: payload + bodyMessage,
+	_, err := s.Writer.Write([]byte(header))
+
+	if err != nil {
+		return err
 	}
 
-	for {
-
-		headers, header, err := protocolchat.ReadHeaders(reader)
-
-		if err != nil {
-
-			events <- Event{kind: disconnection, address: address}
-
-			if err == io.EOF {
-				println("Usuario desconectado: " + address)
-			}
-
-			fmt.Println(err)
-			return
-		}
-
-		sender, ok := headers["sender"]
-
-		if !ok {
-			fmt.Println("Sin header 'Sender'")
-			events <- Event{kind: disconnection, address: address}
-			return
-		}
-
-		if len(sender) > protocolchat.MaxSenderSize {
-			fmt.Println("Valor 'sender' de header excede limite tamaño")
-			events <- Event{kind: disconnection, address: address}
-			return
-		}
-
-		contentType, ok := headers["content-type"]
-
-		if !ok {
-			fmt.Println("Sin header 'content-type'")
-			events <- Event{kind: disconnection, address: address}
-			return
-		}
-
-		switch contentType {
-
-		case "text/plain":
-			size, err := strconv.Atoi(headers["size"])
-
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			if size < 0 || size > protocolchat.MaxBodySize {
-				fmt.Println("Body mensaje excede tamaño limite.")
-				events <- Event{kind: disconnection, address: address}
-				return
-			}
-
-			buffer := make([]byte, size)
-
-			_, err = io.ReadFull(reader, buffer)
-
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
-			body := string(buffer)
-			header.WriteString(body)
-
-			events <- Event{
-				kind:    message,
-				message: header.String(),
-				address: address,
-			}
-
-			fmt.Printf("%s: %s\n", sender, body)
-
-		case "file/notification":
-			events <- Event{
-				kind:    message,
-				message: header.String(),
-				address: address,
-			}
-			fmt.Printf("%s: %s\n", sender, "Notificacion archivo: ")
-		default:
-			fmt.Println("Content-type desconocido: ", contentType)
-			events <- Event{kind: disconnection, address: address}
-			return
-		}
-
-	}
-
+	return s.Writer.Flush()
 }

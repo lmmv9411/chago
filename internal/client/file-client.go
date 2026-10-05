@@ -80,7 +80,7 @@ func sendToServer(filePath string, connMsg net.Conn) {
 	}
 
 	r := bufio.NewReader(conn)
-	if err := isOk(r); err != nil {
+	if _, err := isOk(r); err != nil {
 		fmt.Println(err)
 		return
 	}
@@ -94,7 +94,7 @@ func sendToServer(filePath string, connMsg net.Conn) {
 		return
 	}
 
-	if err := isOk(r); err != nil {
+	if _, err := isOk(r); err != nil {
 		fmt.Println(err)
 		return
 	}
@@ -209,7 +209,7 @@ func downloadFile(headers map[string]string) {
 
 	r := bufio.NewReader(conn)
 
-	if err := isOk(r); err != nil {
+	if _, err := isOk(r); err != nil {
 		fmt.Println(err)
 		return
 	}
@@ -217,31 +217,32 @@ func downloadFile(headers map[string]string) {
 	fmt.Printf("\nArchivo recibido de %s: %s\n", sender, fileName)
 }
 
-func isOk(r *bufio.Reader) error {
+func isOk(r *bufio.Reader) (*string, error) {
 
 	headers, err := protocolfile.ReadHeaders(r)
 
 	if err != nil {
-		return fmt.Errorf("Error al leer respuesta del servidor: %v\n", err)
+		return nil, fmt.Errorf("Error al leer respuesta del servidor: %v\n", err)
 	}
 
 	status, ok := headers["status"]
 
 	if !ok {
-		return errors.New("respuesta del servidor sin status")
+		return nil, errors.New("respuesta del servidor sin status")
 	}
 
 	code, err := strconv.Atoi(status)
 
 	if err != nil {
-		return fmt.Errorf("status inválido en respuesta del servidor: %v\n", err)
+		return nil, fmt.Errorf("status inválido en respuesta del servidor: %v\n", err)
 	}
 
 	if serverfiles.Status(code) != serverfiles.Ok {
-		return fmt.Errorf("servidor respondió %s: %s", status, headers["message"])
+		return nil, fmt.Errorf("servidor respondió %s: %s", status, headers["message"])
 	}
 
-	return nil
+	msg := headers["message"]
+	return &msg, nil
 }
 
 type ProgressWriter struct {

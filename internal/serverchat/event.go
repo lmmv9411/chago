@@ -1,7 +1,5 @@
 package serverchat
 
-import "net"
-
 type EventType int
 
 const (
@@ -13,6 +11,6 @@ const (
 type Event struct {
 	kind    EventType
 	address string
-	conn    net.Conn
+	conn    *Connection
 	message string
 }

@@ -7,16 +7,11 @@ import (
 	"strings"
 )
 
-const (
-	KiB = 1024
-	MiB = 1024 * KiB
-)
+const KiB = 1024
 
 const (
 	MaxHeaderLineSize = KiB
 	MaxHeaderCount    = 16
-	MaxSenderSize     = 64
-	MaxBodySize       = KiB
 )
 
 func ReadHeaders(r *bufio.Reader) (map[string]string, *strings.Builder, error) {

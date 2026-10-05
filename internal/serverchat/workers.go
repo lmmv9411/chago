@@ -2,7 +2,6 @@ package serverchat
 
 import (
 	"fmt"
-	"net"
 )
 
 type Outgoing struct {
@@ -12,29 +11,29 @@ type Outgoing struct {
 const maxQueue = 100
 
 type Client struct {
-	conn    net.Conn
-	out     chan *Outgoing
+	conn    *Connection
+	in      chan *Outgoing
 	address string
 	done    chan struct{}
 }
 
-func worker(client *Client, events chan<- Event) {
+func worker(c *Client, e chan<- Event) {
 
 	for {
 		select {
-		case <-client.done:
-			fmt.Printf("Worker para %s finalizando porque 'done' fue cerrado\n", client.address)
+		case <-c.done:
+			fmt.Printf("Worker para %s finalizando porque 'done' fue cerrado\n", c.address)
 			return
-		case o, ok := <-client.out:
+		case o, ok := <-c.in:
 
 			if !ok {
-				fmt.Printf("Worker para %s finalizando porque 'out' fue cerrado\n", client.address)
+				fmt.Printf("Worker para %s finalizando porque 'out' fue cerrado\n", c.address)
 				return
 			}
 
-			if _, err := client.conn.Write([]byte(o.message)); err != nil {
+			if _, err := c.conn.Write([]byte(o.message)); err != nil {
 				fmt.Println("Error enviando stream message to client: ", err)
-				events <- Event{kind: disconnection, address: client.address}
+				e <- Event{kind: disconnection, address: c.address}
 				return
 			}
 
