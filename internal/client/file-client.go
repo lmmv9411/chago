@@ -117,7 +117,7 @@ func sendToServer(filePath string, connMsg net.Conn) {
 
 }
 
-func downloadFile(headers map[string]string, reader *bufio.Reader) error {
+func downloadFile(headers map[string]string) error {
 
 	sizeS := headers["size"]
 
@@ -171,7 +171,16 @@ func downloadFile(headers map[string]string, reader *bufio.Reader) error {
 
 	fmt.Printf("Recibiendo archivo %s de %s", fileName, sender)
 
-	_, err = io.CopyN(progress, reader, int64(size))
+	conn, err := net.Dial("tcp", Ip+":8081")
+
+	if err != nil {
+		fmt.Printf("Error al conectar a servidor files: %v", err)
+		return err
+	}
+
+	defer conn.Close()
+
+	_, err = io.CopyN(progress, conn, size)
 
 	if err != nil {
 		return errors.New("Error en el stream de archivo")

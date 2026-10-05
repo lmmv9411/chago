@@ -106,7 +106,7 @@ func StartClient() {
 				fmt.Println(err)
 			}
 		case "file/notification":
-			err = downloadFile(headers, r)
+			err = downloadFile(headers)
 			if err != nil {
 				fmt.Println(err)
 				return
