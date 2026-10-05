@@ -189,12 +189,18 @@ func handleConnection(conn net.Conn, events chan<- Event) {
 			events <- Event{
 				kind:    message,
 				message: header.String(),
-				user:    sender,
 				address: address,
 			}
 
 			fmt.Printf("%s: %s\n", sender, body)
 
+		case "file/notification":
+			events <- Event{
+				kind:    message,
+				message: header.String(),
+				address: address,
+			}
+			fmt.Printf("%s: %s\n", sender, "Notificacion archivo: ")
 		default:
 			fmt.Println("Content-type desconocido: ", contentType)
 			events <- Event{kind: disconnection, address: address}

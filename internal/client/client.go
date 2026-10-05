@@ -71,14 +71,26 @@ func StartClient() {
 			return
 		}
 
-		n, err := strconv.Atoi(headers["size"])
+		size, ok := headers["size"]
 
-		if err != nil {
-			fmt.Println(err)
-			continue
+		if !ok {
+			fmt.Println("header size no existe.")
+			return
 		}
 
-		kind := headers["content-type"]
+		n, err := strconv.Atoi(size)
+
+		if err != nil {
+			fmt.Println("Error en cast de header size: ", err)
+			return
+		}
+
+		kind, ok := headers["content-type"]
+
+		if !ok {
+			fmt.Println("header content-type no existe.")
+			return
+		}
 
 		switch kind {
 		case "text/plain":
@@ -90,12 +102,12 @@ func StartClient() {
 			if err != nil {
 				fmt.Println(err)
 			}
-			// case "file":
-			// 	err = handleFileClient(headers, r)
-			// 	if err != nil {
-			// 		fmt.Println(err)
-			// 		continue
-			// 	}
+		case "file":
+			err = downloadFile(headers, r)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
 		}
 	}
 
@@ -117,10 +129,28 @@ func handleWrite(conn net.Conn, user string) {
 
 		switch bodyMessage {
 		case "/file":
-			err := sendFile(scanner)
+
+			filename, err := sendFile(scanner)
+
 			if err != nil {
 				fmt.Println(err)
+				continue
 			}
+
+			headers["content-type"] = "file/notification"
+			headers["size"] = strconv.Itoa(len(bodyMessage))
+			headers["sender"] = user
+			headers["filename"] = filename
+
+			header := protocolchat.BuildHeader(headers)
+
+			_, err = conn.Write([]byte(header))
+
+			if err != nil {
+				fmt.Println("Error enviando mensaje: ", err)
+				return
+			}
+
 		default:
 			headers["content-type"] = "text/plain"
 			headers["size"] = strconv.Itoa(len(bodyMessage))
@@ -131,7 +161,7 @@ func handleWrite(conn net.Conn, user string) {
 			_, err := conn.Write([]byte(header + bodyMessage))
 
 			if err != nil {
-				fmt.Println("Error enviando mensaje:", err)
+				fmt.Println("Error enviando mensaje: ", err)
 				return
 			}
 		}

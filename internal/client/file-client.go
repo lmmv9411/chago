@@ -7,19 +7,20 @@ import (
 	"io"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/lmmv9411/chago/internal/protocolfile"
 	"github.com/lmmv9411/chago/internal/serverfiles"
 )
 
-func sendFile(scanner *bufio.Scanner) error {
+func sendFile(scanner *bufio.Scanner) (string, error) {
 
 	fmt.Print("Escribir ruta de archivo:")
 	scanner.Scan()
 
 	if err := scanner.Err(); err != nil {
-		return errors.New("Error al leer texto: " + err.Error())
+		return "", errors.New("Error al leer texto: " + err.Error())
 	}
 
 	filePath := scanner.Text()
@@ -27,18 +28,18 @@ func sendFile(scanner *bufio.Scanner) error {
 	file, err := os.Open(filePath)
 
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer file.Close()
 
 	info, err := os.Stat(filePath)
 
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if info.IsDir() {
-		return errors.New("Es un directorio")
+		return "", errors.New("Es un directorio")
 	}
 
 	headers := make(map[string]string)
@@ -49,7 +50,72 @@ func sendFile(scanner *bufio.Scanner) error {
 
 	headersStr := protocolfile.BuildHeader(headers)
 
-	return sendToServer(headersStr, file, info.Size())
+	return info.Name(), sendToServer(headersStr, file, info.Size())
+}
+
+func downloadFile(headers map[string]string, reader *bufio.Reader) error {
+
+	sizeS := headers["size"]
+
+	fileName, ok := headers["filename"]
+
+	if !ok {
+		return errors.New("sin header filename")
+	}
+
+	sender, ok := headers["filename"]
+
+	if !ok {
+		return errors.New("sin header sender")
+	}
+
+	size, err := strconv.ParseInt(sizeS, 10, 64)
+
+	if err != nil {
+		return errors.New("Error cast header size")
+	}
+
+	if size < 0 || size > protocolfile.GiB {
+		return errors.New("Archivo excede tamaño permitido")
+	}
+
+	//Por El momento en el directorio donde se ejecuta luego se centralizaria
+	currentDir, err := os.Getwd()
+
+	if err != nil {
+		return errors.New("Error al obtener directorio")
+	}
+
+	err = os.MkdirAll(filepath.Join(currentDir, "downloads"), 0755)
+
+	if err != nil {
+		return errors.New("Error al crear directorio")
+	}
+
+	safeFilename := filepath.Base(fileName)
+	filePath := filepath.Join(currentDir, "downloads", safeFilename)
+
+	file, err := os.Create(filePath)
+
+	if err != nil {
+		return errors.New("Error al crear archivo.")
+	}
+
+	defer file.Close()
+
+	progress := &ProgressWriter{total: size, writer: file, barWidth: 30}
+
+	fmt.Printf("Recibiendo archivo %s de %s", fileName, sender)
+
+	_, err = io.CopyN(progress, reader, int64(size))
+
+	if err != nil {
+		return errors.New("Error en el stream de archivo")
+	}
+
+	fmt.Printf("Archivo recibido de %s: %s", sender, fileName)
+
+	return nil
 }
 
 func sendToServer(header string, file *os.File, size int64) error {

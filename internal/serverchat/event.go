@@ -15,5 +15,4 @@ type Event struct {
 	address string
 	conn    net.Conn
 	message string
-	user    string
 }
