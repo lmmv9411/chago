@@ -37,19 +37,19 @@ func sendToServer(filePath string, connMsg net.Conn) {
 	info, err := os.Stat(filePath)
 
 	if err != nil {
-		fmt.Println(err)
+		printOutput("%s\n", err.Error())
 		return
 	}
 
 	if info.IsDir() {
-		fmt.Println("Es un directorio")
+		printOutput("Es un directorio\n")
 		return
 	}
 
 	file, err := os.Open(filePath)
 
 	if err != nil {
-		fmt.Println(err)
+		printOutput("%s\n", err.Error())
 		return
 	}
 
@@ -66,7 +66,7 @@ func sendToServer(filePath string, connMsg net.Conn) {
 	conn, err := net.Dial("tcp", Ip+":8081")
 
 	if err != nil {
-		fmt.Printf("Error al conectar a servidor files: %v", err)
+		printOutput("Error al conectar a servidor files: %v\n", err)
 		return
 	}
 
@@ -75,13 +75,14 @@ func sendToServer(filePath string, connMsg net.Conn) {
 	_, err = conn.Write([]byte(headersStr))
 
 	if err != nil {
-		fmt.Println("Error al enviar header al servidor-files: ", err)
+		printOutput("Error al enviar header al servidor-files: %s\n", err)
 		return
 	}
 
 	r := bufio.NewReader(conn)
+
 	if _, err := isOk(r); err != nil {
-		fmt.Println(err)
+		printOutput("%s\n", err)
 		return
 	}
 
@@ -90,16 +91,16 @@ func sendToServer(filePath string, connMsg net.Conn) {
 	_, err = io.CopyN(progress, file, info.Size())
 
 	if err != nil {
-		fmt.Println("Error al enviar archivo al servidor-files: ", err)
+		printOutput("Error al enviar archivo al servidor-files: %s\n", err)
 		return
 	}
 
 	if _, err := isOk(r); err != nil {
-		fmt.Println(err)
+		printOutput("%s\n", err)
 		return
 	}
 
-	fmt.Println("\nArchivo enviado y recibido por el servidor.")
+	printOutput("\nArchivo enviado y recibido por el servidor.\n")
 
 	headers = make(map[string]string)
 	headers["content-type"] = "file/notification"
@@ -112,7 +113,7 @@ func sendToServer(filePath string, connMsg net.Conn) {
 	_, err = connMsg.Write([]byte(header))
 
 	if err != nil {
-		fmt.Println("Error enviando file/notification: ", err.Error())
+		printOutput("Error enviando file/notification: %s\n", err.Error())
 		return
 	}
 
@@ -125,26 +126,26 @@ func downloadFile(headers map[string]string) {
 	fileName, ok := headers["filename"]
 
 	if !ok {
-		fmt.Println("sin header filename")
+		printOutput("sin header filename\n")
 		return
 	}
 
 	sender, ok := headers["sender"]
 
 	if !ok {
-		fmt.Println("sin header sender")
+		printOutput("sin header sender\n")
 		return
 	}
 
 	size, err := strconv.ParseInt(sizeS, 10, 64)
 
 	if err != nil {
-		fmt.Println("Error cast header size")
+		printOutput("Error cast header size\n")
 		return
 	}
 
 	if size < 0 || size > protocolfile.GiB {
-		fmt.Println("Archivo excede tamaño permitido")
+		printOutput("Archivo excede tamaño permitido\n")
 		return
 	}
 
@@ -152,14 +153,14 @@ func downloadFile(headers map[string]string) {
 	currentDir, err := os.Getwd()
 
 	if err != nil {
-		fmt.Println("Error al obtener directorio")
+		printOutput("Error al obtener directorio\n")
 		return
 	}
 
 	err = os.MkdirAll(filepath.Join(currentDir, "downloads"), 0755)
 
 	if err != nil {
-		fmt.Println("Error al crear directorio")
+		printOutput("Error al crear directorio\n")
 		return
 	}
 
@@ -169,7 +170,7 @@ func downloadFile(headers map[string]string) {
 	file, err := os.Create(filePath)
 
 	if err != nil {
-		fmt.Println("Error al crear archivo.")
+		printOutput("Error al crear archivo.\n")
 		return
 	}
 
@@ -177,12 +178,12 @@ func downloadFile(headers map[string]string) {
 
 	progress := &ProgressWriter{total: size, writer: file, barWidth: 30}
 
-	fmt.Printf("%s envio archivo: %s\n", sender, fileName)
+	printOutput("%s envio archivo: %s\n", sender, fileName)
 
 	conn, err := net.Dial("tcp", Ip+":8081")
 
 	if err != nil {
-		fmt.Println("Error al conectar a servidor files: ", err)
+		printOutput("Error al conectar a servidor files: %v\n", err)
 		return
 	}
 
@@ -196,25 +197,25 @@ func downloadFile(headers map[string]string) {
 	_, err = conn.Write([]byte(header))
 
 	if err != nil {
-		fmt.Println("Error al enviar headers request")
+		printOutput("Error al enviar headers request\n")
 		return
 	}
 
 	_, err = io.CopyN(progress, conn, size)
 
 	if err != nil {
-		fmt.Println("Error en el stream de archivo")
+		printOutput("Error en el stream de archivo\n")
 		return
 	}
 
 	r := bufio.NewReader(conn)
 
 	if _, err := isOk(r); err != nil {
-		fmt.Println(err)
+		printOutput("%v\n", err)
 		return
 	}
 
-	fmt.Printf("\nArchivo recibido de %s: %s\n", sender, fileName)
+	printOutput("\nArchivo recibido de %s: %s\n", sender, fileName)
 }
 
 func isOk(r *bufio.Reader) (*string, error) {
@@ -272,7 +273,7 @@ func (p *ProgressWriter) Write(data []byte) (int, error) {
 		}
 	}
 
-	fmt.Printf("] %.0f%%", percentage)
+	printOutput("] %.0f%%", percentage)
 
 	return n, nil
 }

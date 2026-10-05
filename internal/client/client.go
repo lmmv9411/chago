@@ -3,7 +3,6 @@ package client
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"strconv"
@@ -15,14 +14,21 @@ import (
 
 var Ip string
 var User string
+var outputMu sync.Mutex
+
+func printOutput(format string, args ...any) {
+	outputMu.Lock()
+	defer outputMu.Unlock()
+	fmt.Printf(format, args...)
+}
 
 func StartClient() {
 
-	reader := bufio.NewReader(os.Stdin)
+	r := bufio.NewReader(os.Stdin)
 
 	fmt.Print("Escribir direccion ip ó [ y ] para usar por defecto: ")
 
-	inputIP, err := reader.ReadString('\n')
+	inputIP, err := r.ReadString('\n')
 
 	if err != nil {
 		fmt.Println("Error al leer ip", err)
@@ -43,7 +49,7 @@ func StartClient() {
 	}
 
 	fmt.Print("Escribir nombre de usuario: ")
-	inputUser, err := reader.ReadString('\n')
+	inputUser, err := r.ReadString('\n')
 
 	if err != nil {
 		fmt.Println("Error al leer usuario", err)
@@ -65,58 +71,67 @@ func StartClient() {
 
 	go handleWrite(conn)
 
-	r := bufio.NewReader(conn)
+	reader := bufio.NewReader(conn)
 
 	for {
-		headers, _, err := protocolchat.ReadHeaders(r)
+		headers, _, err := protocolchat.ReadHeaders(reader)
 
 		if err != nil {
-			fmt.Println(err)
+			printOutput("%s\n", err.Error())
 			return
 		}
 
 		size, ok := headers["size"]
 
 		if !ok {
-			fmt.Println("header size no existe.")
+			printOutput("header size no existe.\n")
 			return
 		}
 
 		n, err := strconv.Atoi(size)
 
 		if err != nil {
-			fmt.Println("Error en cast de header size: ", err)
+			printOutput("Error en cast de header size: %s\n", err)
 			return
 		}
+
+		buffer := make([]byte, n)
 
 		kind, ok := headers["content-type"]
 
 		if !ok {
-			fmt.Println("header content-type no existe.")
+			printOutput("header content-type no existe.\n")
 			return
 		}
 
 		switch kind {
 		case "text/plain":
-			fmt.Println("---------------------------------------")
-			fmt.Printf("sender: %s\nmessage: ", headers["sender"])
-			_, err := io.CopyN(os.Stdout, r, int64(n))
-			fmt.Println()
-			fmt.Println("---------------------------------------")
+
+			n, err := reader.Read(buffer)
+
 			if err != nil {
-				fmt.Println(err)
+				printOutput("%s", err.Error())
+				return
 			}
+
+			body := string(buffer[:n])
+
+			printOutput("---------------------------------------\n")
+			printOutput("sender: %s\nmessage: \n", headers["sender"])
+			printOutput("%s\n", body)
+			printOutput("---------------------------------------\n")
+
 		case "file/notification":
 			go downloadFile(headers)
 		case "response":
 			if msg, err := response(headers); err != nil {
-				fmt.Println(err)
+				printOutput("%s\n", err.Error())
 				return
 			} else {
-				fmt.Println(*msg)
+				printOutput("%s\n", *msg)
 			}
 		default:
-			fmt.Println("Error de cabezera 'content-type'= ¡no reconocido!")
+			printOutput("Error de cabezera 'content-type'= ¡no reconocido!\n")
 		}
 	}
 
@@ -131,7 +146,7 @@ func handleWrite(conn net.Conn) {
 	for scanner.Scan() {
 
 		if err := scanner.Err(); err != nil {
-			fmt.Println("Error al leer texto: ", err)
+			printOutput("Error al leer texto: %s\n", err)
 			continue
 		}
 
@@ -143,7 +158,7 @@ func handleWrite(conn net.Conn) {
 			err := sendFile(scanner, conn)
 
 			if err != nil {
-				fmt.Println(err)
+				printOutput("%s\n", err.Error())
 				continue
 			}
 
@@ -158,7 +173,7 @@ func handleWrite(conn net.Conn) {
 			_, err := conn.Write([]byte(header + bodyMessage))
 
 			if err != nil {
-				fmt.Println("Error enviando mensaje: ", err)
+				printOutput("Error enviando mensaje: %s\n", err)
 				return
 			}
 			mutex.Unlock()
