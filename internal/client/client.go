@@ -7,19 +7,16 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/lmmv9411/chago/internal/protocolchat"
 )
 
 var Ip string
 var User string
-var outputMu sync.Mutex
+var terminal = &Terminal{}
 
 func printOutput(format string, args ...any) {
-	outputMu.Lock()
-	defer outputMu.Unlock()
-	fmt.Printf(format, args...)
+	terminal.Print(format, args...)
 }
 
 func StartClient() {

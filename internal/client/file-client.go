@@ -91,6 +91,8 @@ func sendToServer(filePath string, connMsg net.Conn) {
 		barWidth: 30,
 	}
 
+	terminal.SetProgress(state)
+
 	progress := &ProgressWriter{
 		writer: conn,
 		state:  state,
@@ -188,6 +190,8 @@ func downloadFile(headers map[string]string) {
 		total:    size,
 		barWidth: 30,
 	}
+
+	terminal.SetProgress(state)
 
 	progress := &ProgressWriter{
 		writer: file,
