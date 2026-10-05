@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/lmmv9411/chago/internal/protocolchat"
 	"github.com/lmmv9411/chago/internal/protocolfile"
@@ -17,7 +18,7 @@ import (
 
 func sendFile(scanner *bufio.Scanner, conn net.Conn) error {
 
-	fmt.Print("Escribir ruta de archivo:")
+	printOutput("Escribir ruta de archivo:")
 
 	scanner.Scan()
 
@@ -86,7 +87,7 @@ func sendToServer(filePath string, connMsg net.Conn) {
 		return
 	}
 
-	progress := &ProgressWriter{writer: conn, total: info.Size(), barWidth: 30}
+	progress := &ProgressState{writer: conn, total: info.Size(), barWidth: 30}
 
 	_, err = io.CopyN(progress, file, info.Size())
 
@@ -176,7 +177,7 @@ func downloadFile(headers map[string]string) {
 
 	defer file.Close()
 
-	progress := &ProgressWriter{total: size, writer: file, barWidth: 30}
+	progress := &ProgressState{total: size, writer: file, barWidth: 30}
 
 	printOutput("%s envio archivo: %s\n", sender, fileName)
 
@@ -246,34 +247,35 @@ func isOk(r *bufio.Reader) (*string, error) {
 	return &msg, nil
 }
 
-type ProgressWriter struct {
+type ProgressState struct {
+	active   bool
 	total    int64
-	writer   io.Writer
 	written  int64
 	barWidth int
 }
 
-func (p *ProgressWriter) Write(data []byte) (int, error) {
-	n, err := p.writer.Write(data)
-	if err != nil {
-		return n, err
+func (p *ProgressState) Write() string {
+
+	if !p.active || p.total == 0 {
+		return ""
 	}
 
-	p.written += int64(n)
 	percentage := float64(p.written) / float64(p.total) * 100
-	filled := int((percentage / 100.0) * float64(p.barWidth))
+	filled := int((percentage / 100) * float64(p.barWidth))
 
-	fmt.Print("\r[")
+	var bar strings.Builder
+
+	bar.WriteString("\r[")
 
 	for i := range p.barWidth {
 		if i < filled {
-			fmt.Print("█")
+			bar.WriteString("█")
 		} else {
-			fmt.Print("░")
+			bar.WriteString("░")
 		}
 	}
 
-	printOutput("] %.0f%%", percentage)
+	fmt.Fprintf(&bar, "] %.0f%%", percentage)
 
-	return n, nil
+	return bar.String()
 }

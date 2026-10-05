@@ -141,7 +141,6 @@ func handleWrite(conn net.Conn) {
 
 	scanner := bufio.NewScanner(os.Stdin)
 	headers := make(map[string]string)
-	var mutex sync.Mutex
 
 	for scanner.Scan() {
 
@@ -169,14 +168,12 @@ func handleWrite(conn net.Conn) {
 
 			header := protocolchat.BuildHeader(headers)
 
-			mutex.Lock()
 			_, err := conn.Write([]byte(header + bodyMessage))
 
 			if err != nil {
 				printOutput("Error enviando mensaje: %s\n", err)
 				return
 			}
-			mutex.Unlock()
 
 		}
 
