@@ -1,7 +1,9 @@
 package main
 
-import "github.com/lmmv9411/chago/internal/files"
+import (
+	"github.com/lmmv9411/chago/internal/serverfiles"
+)
 
 func main() {
-	files.StartServer()
+	serverfiles.StartServer()
 }

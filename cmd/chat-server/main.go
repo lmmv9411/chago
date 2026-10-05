@@ -3,8 +3,8 @@ package main
 import (
 	"sync"
 
-	"github.com/lmmv9411/chago/internal/chat"
-	"github.com/lmmv9411/chago/internal/files"
+	"github.com/lmmv9411/chago/internal/serverchat"
+	"github.com/lmmv9411/chago/internal/serverfiles"
 )
 
 func main() {
@@ -14,11 +14,11 @@ func main() {
 
 	go func() {
 		defer wg.Done()
-		chat.StartServer()
+		serverchat.StartServer()
 	}()
 	go func() {
 		defer wg.Done()
-		files.StartServer()
+		serverfiles.StartServer()
 	}()
 
 	wg.Wait()

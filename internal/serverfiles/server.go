@@ -1,11 +1,11 @@
-package files
+package serverfiles
 
 import (
 	"bufio"
 	"net"
 	"strconv"
 
-	"github.com/lmmv9411/chago/internal/protocolchat"
+	"github.com/lmmv9411/chago/internal/protocolfile"
 )
 
 type Status int
@@ -17,10 +17,13 @@ const (
 )
 
 type Server struct {
-	Conn     net.Conn
-	Writer   *bufio.Writer
-	Reader   *bufio.Reader
 	Listener net.Listener
+}
+
+type Connection struct {
+	Conn   net.Conn
+	Writer *bufio.Writer
+	Reader *bufio.Reader
 }
 
 func NewServer(network string, address string) (*Server, error) {
@@ -41,14 +44,14 @@ func (s *Server) CloseListener() error {
 	return nil
 }
 
-func (s *Server) CloseConn() error {
+func (s *Connection) CloseConn() error {
 	if s.Conn != nil {
 		return s.Conn.Close()
 	}
 	return nil
 }
 
-func (s *Server) Accept() (*Server, error) {
+func (s *Server) Accept() (*Connection, error) {
 
 	conn, err := s.Listener.Accept()
 
@@ -56,32 +59,31 @@ func (s *Server) Accept() (*Server, error) {
 		return nil, err
 	}
 
-	connection := &Server{
-		Conn:     conn,
-		Writer:   bufio.NewWriter(conn),
-		Reader:   bufio.NewReader(conn),
-		Listener: s.Listener,
+	connection := &Connection{
+		Conn:   conn,
+		Writer: bufio.NewWriter(conn),
+		Reader: bufio.NewReader(conn),
 	}
 
 	return connection, nil
 }
 
-func (s *Server) SendError(msg string, code Status) error {
+func (s *Connection) SendError(msg string, code Status) error {
 	return s.send(msg, code)
 }
 
-func (s *Server) SendOk(msg string) error {
+func (s *Connection) SendOk(msg string) error {
 	return s.send(msg, Ok)
 }
 
-func (s *Server) send(msg string, code Status) error {
+func (s *Connection) send(msg string, code Status) error {
 
 	headers := make(map[string]string)
 
 	headers["status"] = strconv.Itoa(int(code))
 	headers["message"] = msg
 
-	header := protocolchat.BuildHeader(headers)
+	header := protocolfile.BuildHeader(headers)
 
 	_, err := s.Writer.Write([]byte(header))
 

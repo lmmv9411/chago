@@ -9,8 +9,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/lmmv9411/chago/internal/protocolchat"
-	files "github.com/lmmv9411/chago/internal/serverfiles"
+	"github.com/lmmv9411/chago/internal/protocolfile"
+	"github.com/lmmv9411/chago/internal/serverfiles"
 )
 
 func sendFile(scanner *bufio.Scanner) error {
@@ -47,7 +47,7 @@ func sendFile(scanner *bufio.Scanner) error {
 	headers["size"] = strconv.FormatInt(info.Size(), 10)
 	headers["method"] = "upload"
 
-	headersStr := protocolchat.BuildHeader(headers)
+	headersStr := protocolfile.BuildHeader(headers)
 
 	return sendToServer(headersStr, file, info.Size())
 }
@@ -58,24 +58,31 @@ func sendToServer(header string, file *os.File, size int64) error {
 	if err != nil {
 		return fmt.Errorf("Error al conectar a servidor files: %w", err)
 	}
+
 	defer conn.Close()
 
 	_, err = conn.Write([]byte(header))
+
+	if err := isOk(conn); err != nil {
+		fmt.Println(err)
+		return err
+	}
 
 	if err != nil {
 		return fmt.Errorf("Error al enviar header al servidor-files: %w", err)
 	}
 
-	progress := &ProgressWriter{writer: conn}
+	progress := &ProgressWriter{writer: conn, total: size, barWidth: 30}
 
 	_, err = io.CopyN(progress, file, size)
 
-	if err != nil {
-		return fmt.Errorf("Error al enviar archivo al servidor-files: %w", err)
+	if err := isOk(conn); err != nil {
+		fmt.Println(err)
+		return err
 	}
 
-	if err := isOk(conn); err != nil {
-		return err
+	if err != nil {
+		return fmt.Errorf("Error al enviar archivo al servidor-files: %w", err)
 	}
 
 	fmt.Println("\nArchivo enviado y recibido por el servidor.")
@@ -85,7 +92,7 @@ func sendToServer(header string, file *os.File, size int64) error {
 func isOk(conn net.Conn) error {
 	r := bufio.NewReader(conn)
 
-	headers, _, err := protocolchat.ReadHeaders(r)
+	headers, err := protocolfile.ReadHeaders(r)
 
 	if err != nil {
 		return fmt.Errorf("Error al leer respuesta del servidor: %w", err)
@@ -98,11 +105,12 @@ func isOk(conn net.Conn) error {
 	}
 
 	code, err := strconv.Atoi(status)
+
 	if err != nil {
 		return fmt.Errorf("status inválido en respuesta del servidor: %w", err)
 	}
 
-	if files.Status(code) != files.Ok {
+	if serverfiles.Status(code) != serverfiles.Ok {
 		return fmt.Errorf("servidor respondió %s: %s", status, headers["message"])
 	}
 

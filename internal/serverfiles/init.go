@@ -1,4 +1,4 @@
-package files
+package serverfiles
 
 import (
 	"fmt"
@@ -36,16 +36,17 @@ func StartServer() {
 	}
 }
 
-func handleConnection(s *Server) {
+func handleConnection(c *Connection) {
 
-	defer s.CloseConn()
+	defer c.CloseConn()
 
-	headers, err := protocolfile.ReadHeaders(s.Reader)
+	headers, err := protocolfile.ReadHeaders(c.Reader)
 
+	//Check Headers
 	if err != nil {
 		msg := "Error en lecutra headers: " + err.Error()
 		fmt.Println(msg)
-		s.SendError(msg, RequestError)
+		c.SendError(msg, RequestError)
 		return
 	}
 
@@ -54,7 +55,7 @@ func handleConnection(s *Server) {
 	if !ok {
 		msg := "falta header: 'filename'"
 		fmt.Println(msg)
-		s.SendError(msg, RequestError)
+		c.SendError(msg, RequestError)
 		return
 	}
 
@@ -63,7 +64,7 @@ func handleConnection(s *Server) {
 	if !ok {
 		msg := "falta header: 'size'"
 		fmt.Println(msg)
-		s.SendError(msg, RequestError)
+		c.SendError(msg, RequestError)
 		return
 	}
 
@@ -72,7 +73,7 @@ func handleConnection(s *Server) {
 	if !ok {
 		msg := "falta header: 'method'"
 		fmt.Println(msg)
-		s.SendError(msg, RequestError)
+		c.SendError(msg, RequestError)
 		return
 	}
 
@@ -81,24 +82,25 @@ func handleConnection(s *Server) {
 	if err != nil {
 		msg := "Error en parsing de size"
 		fmt.Println(msg)
-		s.SendError(msg, RequestError)
+		c.SendError(msg, RequestError)
 		return
 	}
 
 	if size < 0 || size > protocolfile.MaxBodySize {
 		msg := "Archivo con tamaño no permitido"
 		fmt.Println(msg)
-		s.SendError(msg, RequestError)
+		c.SendError(msg, RequestError)
 
 		return
 	}
 
 	//Por El momento en el directorio donde se ejecuta luego se centralizaria
 	currentDir, err := os.Getwd()
+
 	if err != nil {
 		msg := "Error al obtener directorio"
 		fmt.Println(msg, err)
-		s.SendError(msg, InternalError)
+		c.SendError(msg, InternalError)
 		return
 	}
 
@@ -107,7 +109,7 @@ func handleConnection(s *Server) {
 	if err != nil {
 		msg := "Error al crear directorio"
 		fmt.Println(msg, err)
-		s.SendError(msg, InternalError)
+		c.SendError(msg, InternalError)
 		return
 	}
 
@@ -122,22 +124,24 @@ func handleConnection(s *Server) {
 		if err != nil {
 			msg := fmt.Sprintf("Error al crear archivo %s, %s\n", fileName, err.Error())
 			fmt.Println(msg)
-			s.SendError(msg, InternalError)
+			c.SendError(msg, InternalError)
 			return
 		}
 
 		defer file.Close()
 
-		_, err = io.CopyN(file, s.Reader, size)
+		c.SendOk("ok")
+
+		_, err = io.CopyN(file, c.Reader, size)
 
 		if err != nil {
 			msg := fmt.Sprintf("Error en stream %s, %s\n", fileName, err.Error())
 			fmt.Println(msg)
-			s.SendError(msg, InternalError)
+			c.SendError(msg, InternalError)
 			return
 		}
 
-		s.SendOk("Archivo recibido")
+		c.SendOk("Archivo recibido")
 
 	case "download":
 
@@ -146,7 +150,7 @@ func handleConnection(s *Server) {
 		if err != nil {
 			msg := fmt.Sprintf("Error al leer archivo %s, %s\n", fileName, err.Error())
 			fmt.Println(msg)
-			s.SendError(msg, InternalError)
+			c.SendError(msg, InternalError)
 			return
 		}
 
@@ -157,22 +161,22 @@ func handleConnection(s *Server) {
 		if err != nil {
 			msg := fmt.Sprintln("Error al acceder a info de archivo: " + err.Error())
 			fmt.Println(msg)
-			s.SendError(msg, InternalError)
+			c.SendError(msg, InternalError)
 			return
 		}
 
-		_, err = io.CopyN(s.Conn, file, info.Size())
+		_, err = io.CopyN(c.Conn, file, info.Size())
 
 		if err != nil {
 			msg := fmt.Sprintf("Error al crear archivo %s, %s\n", fileName, err.Error())
 			fmt.Println(msg)
-			s.SendError(msg, InternalError)
+			c.SendError(msg, InternalError)
 			return
 		}
 	default:
 		msg := fmt.Sprintln("Método no existe: ", method)
 		fmt.Println(msg)
-		s.SendError(msg, InternalError)
+		c.SendError(msg, InternalError)
 	}
 
 }

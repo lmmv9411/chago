@@ -3,6 +3,7 @@ package protocolfile
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -62,4 +63,16 @@ func ReadHeaders(reader *bufio.Reader) (map[string]string, error) {
 	}
 
 	return headers, nil
+}
+
+func BuildHeader(headers map[string]string) string {
+	var header strings.Builder
+
+	for key, value := range headers {
+		fmt.Fprintf(&header, "%s:%s\n", key, value)
+	}
+
+	header.WriteString("\n")
+
+	return header.String()
 }
