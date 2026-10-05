@@ -133,7 +133,7 @@ func handleWrite(conn net.Conn) {
 		switch bodyMessage {
 		case "/file":
 
-			err := sendFile(scanner)
+			err := sendFile(scanner, conn)
 
 			if err != nil {
 				fmt.Println(err)

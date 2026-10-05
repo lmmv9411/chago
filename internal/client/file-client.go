@@ -15,7 +15,7 @@ import (
 	"github.com/lmmv9411/chago/internal/serverfiles"
 )
 
-func sendFile(scanner *bufio.Scanner) error {
+func sendFile(scanner *bufio.Scanner, conn net.Conn) error {
 
 	fmt.Print("Escribir ruta de archivo:")
 
@@ -27,12 +27,12 @@ func sendFile(scanner *bufio.Scanner) error {
 
 	filePath := scanner.Text()
 
-	go sendToServer(filePath)
+	go sendToServer(filePath, conn)
 
 	return nil
 }
 
-func sendToServer(filePath string) {
+func sendToServer(filePath string, connMsg net.Conn) {
 
 	info, err := os.Stat(filePath)
 
@@ -108,7 +108,7 @@ func sendToServer(filePath string) {
 
 	header := protocolchat.BuildHeader(headers)
 
-	_, err = conn.Write([]byte(header))
+	_, err = connMsg.Write([]byte(header))
 
 	if err != nil {
 		fmt.Println("Error enviando file/notification: ", err.Error())
