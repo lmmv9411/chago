@@ -274,7 +274,9 @@ func (p *ProgressWriter) Write(data []byte) (int, error) {
 		return n, err
 	}
 
+	p.state.mu.Lock()
 	p.state.written += int64(n)
+	p.state.mu.Unlock()
 
 	return n, nil
 }
