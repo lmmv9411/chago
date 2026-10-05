@@ -87,7 +87,7 @@ func sendToServer(filePath string, connMsg net.Conn) {
 		return
 	}
 
-	progress := &ProgressState{writer: conn, total: info.Size(), barWidth: 30}
+	progress := &ProgressWriter{writer: conn, total: info.Size(), barWidth: 30}
 
 	_, err = io.CopyN(progress, file, info.Size())
 
@@ -177,7 +177,7 @@ func downloadFile(headers map[string]string) {
 
 	defer file.Close()
 
-	progress := &ProgressState{total: size, writer: file, barWidth: 30}
+	progress := &ProgressWriter{total: size, writer: file, barWidth: 30}
 
 	printOutput("%s envio archivo: %s\n", sender, fileName)
 
@@ -247,21 +247,22 @@ func isOk(r *bufio.Reader) (*string, error) {
 	return &msg, nil
 }
 
-type ProgressState struct {
-	active   bool
+type ProgressWriter struct {
 	total    int64
+	writer   io.Writer
 	written  int64
 	barWidth int
 }
 
-func (p *ProgressState) Write() string {
-
-	if !p.active || p.total == 0 {
-		return ""
+func (p *ProgressWriter) Write(data []byte) (int, error) {
+	n, err := p.writer.Write(data)
+	if err != nil {
+		return n, err
 	}
 
+	p.written += int64(n)
 	percentage := float64(p.written) / float64(p.total) * 100
-	filled := int((percentage / 100) * float64(p.barWidth))
+	filled := int((percentage / 100.0) * float64(p.barWidth))
 
 	var bar strings.Builder
 
@@ -277,5 +278,7 @@ func (p *ProgressState) Write() string {
 
 	fmt.Fprintf(&bar, "] %.0f%%", percentage)
 
-	return bar.String()
+	printOutput("%s", bar.String())
+
+	return n, nil
 }
