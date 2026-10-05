@@ -93,7 +93,11 @@ func server(events chan Event) {
 				}
 
 			}
-
+		case notification:
+			users[event.address].in <- &Outgoing{message: event.message}
+			if event.status != Ok {
+				events <- Event{kind: disconnection, address: event.address}
+			}
 		}
 	}
 }
@@ -143,16 +147,16 @@ func handleConnection(conn *Connection, events chan<- Event) {
 		if !ok {
 			msg := "falta header 'Sender' en petición"
 			fmt.Println(msg)
-			conn.SendError(msg, RequestError)
-			events <- Event{kind: disconnection, address: address}
+			headerNotification := conn.createError(msg, RequestError)
+			events <- Event{kind: notification, message: headerNotification, status: RequestError}
 			return
 		}
 
 		if len(sender) > MaxSenderSize {
 			msg := "Valor de header 'sender' de header excede limite tamaño"
 			fmt.Println(msg)
-			conn.SendError(msg, RequestError)
-			events <- Event{kind: disconnection, address: address}
+			headerNotification := conn.createError(msg, RequestError)
+			events <- Event{kind: notification, message: headerNotification, status: RequestError}
 			return
 		}
 
@@ -161,28 +165,27 @@ func handleConnection(conn *Connection, events chan<- Event) {
 		if !ok {
 			msg := "Sin header 'content-type'"
 			fmt.Println(msg)
-			conn.SendError(msg, RequestError)
-			events <- Event{kind: disconnection, address: address}
+			headerNotification := conn.createError(msg, RequestError)
+			events <- Event{kind: notification, message: headerNotification, status: RequestError}
 			return
 		}
 
 		switch contentType {
-
 		case "text/plain":
 			size, err := strconv.Atoi(headers["size"])
 
 			if err != nil {
 				msg := "Error en cast de header size: " + err.Error()
 				fmt.Println(msg)
-				conn.SendError(msg, RequestError)
-				continue
+				headerNotification := conn.createError(msg, RequestError)
+				events <- Event{kind: notification, message: headerNotification, status: RequestError}
 			}
 
 			if size < 0 || size > MaxBodySize {
 				msg := "Body mensaje excede tamaño limite."
 				fmt.Println(msg)
-				conn.SendError(msg, RequestError)
-				events <- Event{kind: disconnection, address: address}
+				headerNotification := conn.createError(msg, RequestError)
+				events <- Event{kind: notification, message: headerNotification, status: RequestError}
 				return
 			}
 
@@ -216,12 +219,13 @@ func handleConnection(conn *Connection, events chan<- Event) {
 		default:
 			msg := "Content-type desconocido: " + contentType
 			fmt.Println(msg)
-			events <- Event{kind: disconnection, address: address}
-			conn.SendError(msg, RequestError)
+			headerNotification := conn.createError(msg, RequestError)
+			events <- Event{kind: notification, message: headerNotification, status: RequestError}
 			return
 		}
 
-		conn.SendOk("Mensaje enviado")
+		headerNotification := conn.createOk("")
+		events <- Event{kind: notification, status: Ok, message: headerNotification}
 
 	}
 

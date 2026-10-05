@@ -6,6 +6,7 @@ const (
 	connection EventType = iota
 	disconnection
 	message
+	notification
 )
 
 type Event struct {
@@ -13,4 +14,5 @@ type Event struct {
 	address string
 	conn    *Connection
 	message string
+	status  Status
 }

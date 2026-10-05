@@ -100,15 +100,15 @@ func (s *Server) Accept() (*Connection, error) {
 	return connection, nil
 }
 
-func (s *Connection) SendError(msg string, code Status) error {
-	return s.send(msg, code)
+func (s *Connection) createError(msg string, code Status) string {
+	return s.create(msg, code)
 }
 
-func (s *Connection) SendOk(msg string) error {
-	return s.send(msg, Ok)
+func (s *Connection) createOk(msg string) string {
+	return s.create(msg, Ok)
 }
 
-func (s *Connection) send(msg string, code Status) error {
+func (s *Connection) create(msg string, code Status) string {
 
 	headers := make(map[string]string)
 
@@ -119,6 +119,5 @@ func (s *Connection) send(msg string, code Status) error {
 
 	header := protocolchat.BuildHeader(headers)
 
-	_, err := s.Write([]byte(header))
-	return err
+	return header
 }
