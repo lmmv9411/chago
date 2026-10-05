@@ -5,7 +5,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/lmmv9411/chago/internal/protocolchat"
 )
@@ -25,10 +24,9 @@ const (
 )
 
 type Connection struct {
-	conn    net.Conn
-	Writer  *bufio.Writer
-	Reader  *bufio.Reader
-	writeMu sync.Mutex
+	conn   net.Conn
+	Writer *bufio.Writer
+	Reader *bufio.Reader
 }
 
 type Server struct {
@@ -58,8 +56,6 @@ func (c *Connection) BuildHeader(headers map[string]string) string {
 }
 
 func (c *Connection) Write(buffer []byte) (int, error) {
-	c.writeMu.Lock()
-	defer c.writeMu.Unlock()
 
 	n, err := c.Writer.Write(buffer)
 	if err != nil {
