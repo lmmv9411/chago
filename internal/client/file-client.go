@@ -206,7 +206,7 @@ func downloadFile(headers map[string]string) {
 		return
 	}
 
-	fmt.Printf("Archivo recibido de %s: %s\n", sender, fileName)
+	fmt.Printf("\nArchivo recibido de %s: %s\n", sender, fileName)
 }
 
 func isOk(conn net.Conn) error {
