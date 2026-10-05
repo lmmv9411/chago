@@ -128,7 +128,7 @@ func downloadFile(headers map[string]string) {
 		return
 	}
 
-	sender, ok := headers["filename"]
+	sender, ok := headers["sender"]
 
 	if !ok {
 		fmt.Println("sin header sender")
@@ -186,6 +186,18 @@ func downloadFile(headers map[string]string) {
 	}
 
 	defer conn.Close()
+
+	headers["method"] = "download"
+
+	header := protocolfile.BuildHeader(headers)
+
+	//Request file from server-file
+	_, err = conn.Write([]byte(header))
+
+	if err != nil {
+		fmt.Println("Error al enviar headers request")
+		return
+	}
 
 	_, err = io.CopyN(progress, conn, size)
 
