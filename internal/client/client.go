@@ -33,7 +33,7 @@ func StartClient() {
 	if inputIP == "y" {
 		Ip = "192.168.1.33"
 	} else {
-		if net.ParseIP(Ip) == nil {
+		if net.ParseIP(inputIP) == nil {
 			fmt.Println("¡Dirección ip inválida!...")
 			return
 		}
