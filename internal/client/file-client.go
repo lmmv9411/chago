@@ -10,47 +10,26 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/lmmv9411/chago/internal/protocolchat"
 	"github.com/lmmv9411/chago/internal/protocolfile"
 	"github.com/lmmv9411/chago/internal/serverfiles"
 )
 
-func sendFile(scanner *bufio.Scanner) (string, error) {
+func sendFile(scanner *bufio.Scanner) error {
 
 	fmt.Print("Escribir ruta de archivo:")
+
 	scanner.Scan()
 
 	if err := scanner.Err(); err != nil {
-		return "", errors.New("Error al leer texto: " + err.Error())
+		return errors.New("Error al leer texto: " + err.Error())
 	}
 
 	filePath := scanner.Text()
 
-	file, err := os.Open(filePath)
+	go sendToServer(filePath)
 
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	info, err := os.Stat(filePath)
-
-	if err != nil {
-		return "", err
-	}
-
-	if info.IsDir() {
-		return "", errors.New("Es un directorio")
-	}
-
-	headers := make(map[string]string)
-
-	headers["filename"] = info.Name()
-	headers["size"] = strconv.FormatInt(info.Size(), 10)
-	headers["method"] = "upload"
-
-	headersStr := protocolfile.BuildHeader(headers)
-
-	return info.Name(), sendToServer(headersStr, file, info.Size())
+	return nil
 }
 
 func downloadFile(headers map[string]string, reader *bufio.Reader) error {
@@ -118,8 +97,34 @@ func downloadFile(headers map[string]string, reader *bufio.Reader) error {
 	return nil
 }
 
-func sendToServer(header string, file *os.File, size int64) error {
-	println("Este es la ip: ", Ip)
+func sendToServer(filePath string) error {
+
+	info, err := os.Stat(filePath)
+
+	if err != nil {
+		return err
+	}
+
+	if info.IsDir() {
+		return errors.New("Es un directorio")
+	}
+
+	file, err := os.Open(filePath)
+
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	headers := make(map[string]string)
+
+	headers["filename"] = info.Name()
+	headers["size"] = strconv.FormatInt(info.Size(), 10)
+	headers["method"] = "upload"
+
+	headersStr := protocolfile.BuildHeader(headers)
+
 	conn, err := net.Dial("tcp", Ip+":8081")
 
 	if err != nil {
@@ -128,7 +133,7 @@ func sendToServer(header string, file *os.File, size int64) error {
 
 	defer conn.Close()
 
-	_, err = conn.Write([]byte(header))
+	_, err = conn.Write([]byte(headersStr))
 
 	if err != nil {
 		return fmt.Errorf("Error al enviar header al servidor-files: %w", err)
@@ -139,9 +144,9 @@ func sendToServer(header string, file *os.File, size int64) error {
 		return err
 	}
 
-	progress := &ProgressWriter{writer: conn, total: size, barWidth: 30}
+	progress := &ProgressWriter{writer: conn, total: info.Size(), barWidth: 30}
 
-	_, err = io.CopyN(progress, file, size)
+	_, err = io.CopyN(progress, file, info.Size())
 
 	if err != nil {
 		return fmt.Errorf("Error al enviar archivo al servidor-files: %w", err)
@@ -153,6 +158,22 @@ func sendToServer(header string, file *os.File, size int64) error {
 	}
 
 	fmt.Println("\nArchivo enviado y recibido por el servidor.")
+
+	headers = make(map[string]string)
+	headers["content-type"] = "file/notification"
+	headers["size"] = strconv.FormatInt(info.Size(), 10)
+	headers["sender"] = User
+	headers["filename"] = info.Name()
+
+	header := protocolchat.BuildHeader(headers)
+
+	_, err = conn.Write([]byte(header))
+
+	if err != nil {
+		fmt.Println("Error enviando mensaje: ", err)
+		return errors.New("Error enviando file/notification " + err.Error())
+	}
+
 	return nil
 }
 

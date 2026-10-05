@@ -13,6 +13,7 @@ import (
 )
 
 var Ip string
+var User string
 
 func StartClient() {
 
@@ -40,15 +41,15 @@ func StartClient() {
 
 	}
 
-	fmt.Print("Escribir usuario: ")
-	user, err := reader.ReadString('\n')
-
-	user = strings.TrimSpace(user)
+	fmt.Print("Escribir nombre de usuario: ")
+	inputUser, err := reader.ReadString('\n')
 
 	if err != nil {
 		fmt.Println("Error al leer usuario", err)
 		return
 	}
+
+	User = strings.TrimSpace(inputUser)
 
 	conn, err := net.Dial("tcp", Ip+":8080")
 
@@ -61,7 +62,7 @@ func StartClient() {
 
 	fmt.Println("Conectado al servidor")
 
-	go handleWrite(conn, user)
+	go handleWrite(conn)
 
 	r := bufio.NewReader(conn)
 
@@ -104,7 +105,7 @@ func StartClient() {
 			if err != nil {
 				fmt.Println(err)
 			}
-		case "file":
+		case "file/notification":
 			err = downloadFile(headers, r)
 			if err != nil {
 				fmt.Println(err)
@@ -115,7 +116,7 @@ func StartClient() {
 
 }
 
-func handleWrite(conn net.Conn, user string) {
+func handleWrite(conn net.Conn) {
 
 	scanner := bufio.NewScanner(os.Stdin)
 	headers := make(map[string]string)
@@ -132,31 +133,17 @@ func handleWrite(conn net.Conn, user string) {
 		switch bodyMessage {
 		case "/file":
 
-			filename, err := sendFile(scanner)
+			err := sendFile(scanner)
 
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
 
-			headers["content-type"] = "file/notification"
-			headers["size"] = strconv.Itoa(len(bodyMessage))
-			headers["sender"] = user
-			headers["filename"] = filename
-
-			header := protocolchat.BuildHeader(headers)
-
-			_, err = conn.Write([]byte(header))
-
-			if err != nil {
-				fmt.Println("Error enviando mensaje: ", err)
-				return
-			}
-
 		default:
 			headers["content-type"] = "text/plain"
 			headers["size"] = strconv.Itoa(len(bodyMessage))
-			headers["sender"] = user
+			headers["sender"] = User
 
 			header := protocolchat.BuildHeader(headers)
 
