@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/lmmv9411/chago/internal/protocolchat"
 )
@@ -125,6 +126,7 @@ func handleWrite(conn net.Conn) {
 
 	scanner := bufio.NewScanner(os.Stdin)
 	headers := make(map[string]string)
+	var mutex sync.Mutex
 
 	for scanner.Scan() {
 
@@ -152,12 +154,14 @@ func handleWrite(conn net.Conn) {
 
 			header := protocolchat.BuildHeader(headers)
 
+			mutex.Lock()
 			_, err := conn.Write([]byte(header + bodyMessage))
 
 			if err != nil {
 				fmt.Println("Error enviando mensaje: ", err)
 				return
 			}
+			mutex.Unlock()
 
 		}
 
