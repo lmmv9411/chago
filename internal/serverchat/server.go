@@ -5,6 +5,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/lmmv9411/chago/internal/protocolchat"
 )
@@ -24,9 +25,10 @@ const (
 )
 
 type Connection struct {
-	conn   net.Conn
-	Writer *bufio.Writer
-	Reader *bufio.Reader
+	conn    net.Conn
+	Writer  *bufio.Writer
+	Reader  *bufio.Reader
+	writeMu sync.Mutex
 }
 
 type Server struct {
@@ -56,7 +58,19 @@ func (c *Connection) BuildHeader(headers map[string]string) string {
 }
 
 func (c *Connection) Write(buffer []byte) (int, error) {
-	return c.Writer.Write(buffer)
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+
+	n, err := c.Writer.Write(buffer)
+	if err != nil {
+		return n, err
+	}
+
+	if err := c.Writer.Flush(); err != nil {
+		return n, err
+	}
+
+	return n, nil
 }
 
 func (s *Server) CloseListener() error {
@@ -109,11 +123,6 @@ func (s *Connection) send(msg string, code Status) error {
 
 	header := protocolchat.BuildHeader(headers)
 
-	_, err := s.Writer.Write([]byte(header))
-
-	if err != nil {
-		return err
-	}
-
-	return s.Writer.Flush()
+	_, err := s.Write([]byte(header))
+	return err
 }
