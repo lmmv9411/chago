@@ -92,6 +92,8 @@ func sendToServer(filePath string, connMsg net.Conn) {
 	}
 
 	terminal.SetProgress(state)
+	terminal.StartProgress()
+	defer terminal.StopProgress()
 
 	progress := &ProgressWriter{
 		writer: conn,
@@ -192,6 +194,8 @@ func downloadFile(headers map[string]string) {
 	}
 
 	terminal.SetProgress(state)
+	terminal.StartProgress()
+	defer terminal.StopProgress()
 
 	progress := &ProgressWriter{
 		writer: file,
