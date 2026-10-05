@@ -156,14 +156,25 @@ func handleConnection(c *Connection) {
 
 		defer file.Close()
 
-		_, err = io.CopyN(c.Conn, file, size)
+		info, err := os.Stat(filePath)
 
 		if err != nil {
-			msg := fmt.Sprintf("Error al crear archivo %s, %s\n", fileName, err.Error())
+			msg := fmt.Sprintln("Error al acceder a info de archivo: " + err.Error())
 			fmt.Println(msg)
 			c.SendError(msg, InternalError)
 			return
 		}
+
+		_, err = io.CopyN(c.Conn, file, info.Size())
+
+		if err != nil {
+			msg := fmt.Sprintf("Error de stream %s, %s\n", fileName, err.Error())
+			fmt.Println(msg)
+			c.SendError(msg, InternalError)
+			return
+		}
+
+		c.SendOk(fmt.Sprintf("Ok %s %d", fileName, info.Size()))
 	default:
 		msg := fmt.Sprintln("Método no existe: ", method)
 		fmt.Println(msg)

@@ -75,11 +75,12 @@ func sendToServer(filePath string, connMsg net.Conn) {
 	_, err = conn.Write([]byte(headersStr))
 
 	if err != nil {
-		fmt.Println("Error al enviar header al servidor-files: %w", err)
+		fmt.Println("Error al enviar header al servidor-files: ", err)
 		return
 	}
 
-	if err := isOk(conn); err != nil {
+	r := bufio.NewReader(conn)
+	if err := isOk(r); err != nil {
 		fmt.Println(err)
 		return
 	}
@@ -89,11 +90,11 @@ func sendToServer(filePath string, connMsg net.Conn) {
 	_, err = io.CopyN(progress, file, info.Size())
 
 	if err != nil {
-		fmt.Println("Error al enviar archivo al servidor-files: %w", err)
+		fmt.Println("Error al enviar archivo al servidor-files: ", err)
 		return
 	}
 
-	if err := isOk(conn); err != nil {
+	if err := isOk(r); err != nil {
 		fmt.Println(err)
 		return
 	}
@@ -181,7 +182,7 @@ func downloadFile(headers map[string]string) {
 	conn, err := net.Dial("tcp", Ip+":8081")
 
 	if err != nil {
-		fmt.Printf("Error al conectar a servidor files: %v", err)
+		fmt.Println("Error al conectar a servidor files: ", err)
 		return
 	}
 
@@ -206,16 +207,22 @@ func downloadFile(headers map[string]string) {
 		return
 	}
 
+	r := bufio.NewReader(conn)
+
+	if err := isOk(r); err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	fmt.Printf("\nArchivo recibido de %s: %s\n", sender, fileName)
 }
 
-func isOk(conn net.Conn) error {
-	r := bufio.NewReader(conn)
+func isOk(r *bufio.Reader) error {
 
 	headers, err := protocolfile.ReadHeaders(r)
 
 	if err != nil {
-		return fmt.Errorf("Error al leer respuesta del servidor: %w", err)
+		return fmt.Errorf("Error al leer respuesta del servidor: %v\n", err)
 	}
 
 	status, ok := headers["status"]
@@ -227,7 +234,7 @@ func isOk(conn net.Conn) error {
 	code, err := strconv.Atoi(status)
 
 	if err != nil {
-		return fmt.Errorf("status inválido en respuesta del servidor: %w", err)
+		return fmt.Errorf("status inválido en respuesta del servidor: %v\n", err)
 	}
 
 	if serverfiles.Status(code) != serverfiles.Ok {

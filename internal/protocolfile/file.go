@@ -58,6 +58,10 @@ func ReadHeaders(reader *bufio.Reader) (map[string]string, error) {
 			return nil, errors.New("Par key:value vacios en linea header")
 		}
 
+		if _, exist := headers[key]; exist {
+			return nil, errors.New("header/s duplicado")
+		}
+
 		headers[key] = value
 
 	}
