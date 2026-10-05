@@ -9,8 +9,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/lmmv9411/chago/internal/files"
 	"github.com/lmmv9411/chago/internal/protocolchat"
+	files "github.com/lmmv9411/chago/internal/serverfiles"
 )
 
 func sendFile(scanner *bufio.Scanner) error {
