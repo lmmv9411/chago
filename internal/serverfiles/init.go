@@ -156,16 +156,7 @@ func handleConnection(c *Connection) {
 
 		defer file.Close()
 
-		info, err := os.Stat(filePath)
-
-		if err != nil {
-			msg := fmt.Sprintln("Error al acceder a info de archivo: " + err.Error())
-			fmt.Println(msg)
-			c.SendError(msg, InternalError)
-			return
-		}
-
-		_, err = io.CopyN(c.Conn, file, info.Size())
+		_, err = io.CopyN(c.Conn, file, size)
 
 		if err != nil {
 			msg := fmt.Sprintf("Error al crear archivo %s, %s\n", fileName, err.Error())

@@ -176,7 +176,7 @@ func downloadFile(headers map[string]string) {
 
 	progress := &ProgressWriter{total: size, writer: file, barWidth: 30}
 
-	fmt.Printf("Recibiendo archivo %s de %s", fileName, sender)
+	fmt.Printf("Recibiendo archivo %s de %s\n", fileName, sender)
 
 	conn, err := net.Dial("tcp", Ip+":8081")
 
