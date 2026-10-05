@@ -119,6 +119,7 @@ func downloadFile(headers map[string]string, reader *bufio.Reader) error {
 }
 
 func sendToServer(header string, file *os.File, size int64) error {
+	println("Este es la ip: ", Ip)
 	conn, err := net.Dial("tcp", Ip+":8081")
 
 	if err != nil {

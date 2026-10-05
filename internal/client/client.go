@@ -20,22 +20,24 @@ func StartClient() {
 
 	fmt.Print("Escribir direccion ip ó [ y ] para usar por defecto: ")
 
-	Ip, err := reader.ReadString('\n')
+	inputIP, err := reader.ReadString('\n')
 
 	if err != nil {
 		fmt.Println("Error al leer ip", err)
 		return
 	}
 
-	Ip = strings.TrimSpace(Ip)
+	inputIP = strings.TrimSpace(inputIP)
 
-	if Ip != "y" {
+	if inputIP == "y" {
+		Ip = "192.168.1.33"
+	} else {
 		if net.ParseIP(Ip) == nil {
 			fmt.Println("¡Dirección ip inválida!...")
 			return
 		}
-	} else {
-		Ip = "192.168.1.33"
+		Ip = inputIP
+
 	}
 
 	fmt.Print("Escribir usuario: ")
