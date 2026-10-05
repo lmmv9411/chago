@@ -9,6 +9,8 @@ type Outgoing struct {
 	message string
 }
 
+const maxQueue = 100
+
 type Client struct {
 	conn    net.Conn
 	out     chan *Outgoing

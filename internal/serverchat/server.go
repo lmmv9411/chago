@@ -57,7 +57,7 @@ func server(events chan Event) {
 
 			newClient := &Client{
 				conn:    event.conn,
-				out:     make(chan *Outgoing, 10),
+				out:     make(chan *Outgoing, maxQueue),
 				address: event.address,
 				done:    make(chan struct{}),
 			}
@@ -82,12 +82,19 @@ func server(events chan Event) {
 			delete(users, event.address)
 
 		case message:
-
 			for address, client := range users {
 				if address == event.address {
 					continue
 				}
-				client.out <- &Outgoing{message: event.message}
+				select {
+				case client.out <- &Outgoing{message: event.message}:
+				default:
+					events <- Event{
+						kind:    disconnection,
+						address: client.address,
+					}
+				}
+
 			}
 
 		}
