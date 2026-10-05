@@ -106,11 +106,9 @@ func StartClient() {
 				fmt.Println(err)
 			}
 		case "file/notification":
-			err = downloadFile(headers)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
+			go downloadFile(headers)
+		default:
+			fmt.Println("Error de cabezera 'content-type'= ¡no reconocido!")
 		}
 	}
 

@@ -117,43 +117,49 @@ func sendToServer(filePath string, connMsg net.Conn) {
 
 }
 
-func downloadFile(headers map[string]string) error {
+func downloadFile(headers map[string]string) {
 
 	sizeS := headers["size"]
 
 	fileName, ok := headers["filename"]
 
 	if !ok {
-		return errors.New("sin header filename")
+		fmt.Println("sin header filename")
+		return
 	}
 
 	sender, ok := headers["filename"]
 
 	if !ok {
-		return errors.New("sin header sender")
+		fmt.Println("sin header sender")
+		return
 	}
 
 	size, err := strconv.ParseInt(sizeS, 10, 64)
 
 	if err != nil {
-		return errors.New("Error cast header size")
+		fmt.Println("Error cast header size")
+		return
 	}
 
 	if size < 0 || size > protocolfile.GiB {
-		return errors.New("Archivo excede tamaño permitido")
+		fmt.Println("Archivo excede tamaño permitido")
+		return
 	}
 
 	//Por El momento en el directorio donde se ejecuta luego se centralizaria
 	currentDir, err := os.Getwd()
 
 	if err != nil {
-		return errors.New("Error al obtener directorio")
+		fmt.Println("Error al obtener directorio")
+		return
 	}
 
 	err = os.MkdirAll(filepath.Join(currentDir, "downloads"), 0755)
 
 	if err != nil {
-		return errors.New("Error al crear directorio")
+		fmt.Println("Error al crear directorio")
+		return
 	}
 
 	safeFilename := filepath.Base(fileName)
@@ -162,7 +168,8 @@ func downloadFile(headers map[string]string) error {
 	file, err := os.Create(filePath)
 
 	if err != nil {
-		return errors.New("Error al crear archivo.")
+		fmt.Println("Error al crear archivo.")
+		return
 	}
 
 	defer file.Close()
@@ -175,7 +182,7 @@ func downloadFile(headers map[string]string) error {
 
 	if err != nil {
 		fmt.Printf("Error al conectar a servidor files: %v", err)
-		return err
+		return
 	}
 
 	defer conn.Close()
@@ -183,12 +190,11 @@ func downloadFile(headers map[string]string) error {
 	_, err = io.CopyN(progress, conn, size)
 
 	if err != nil {
-		return errors.New("Error en el stream de archivo")
+		fmt.Println("Error en el stream de archivo")
+		return
 	}
 
 	fmt.Printf("Archivo recibido de %s: %s", sender, fileName)
-
-	return nil
 }
 
 func isOk(conn net.Conn) error {
