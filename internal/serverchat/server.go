@@ -2,6 +2,7 @@ package serverchat
 
 import (
 	"bufio"
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -63,10 +64,12 @@ func (c *Connection) Write(buffer []byte) (int, error) {
 
 	n, err := c.Writer.Write(buffer)
 	if err != nil {
+		fmt.Println("Error on Write server*: ", err)
 		return n, err
 	}
 
 	if err := c.Writer.Flush(); err != nil {
+		fmt.Println("Error on Flush server*: ", err)
 		return n, err
 	}
 
@@ -113,10 +116,6 @@ func (s *Connection) SendOk(msg string) error {
 }
 
 func (s *Connection) send(msg string, code Status) error {
-
-	s.writeMu.Lock()
-	defer s.writeMu.Unlock()
-
 	headers := make(map[string]string)
 
 	headers["content-type"] = "response"
@@ -127,6 +126,6 @@ func (s *Connection) send(msg string, code Status) error {
 	header := protocolchat.BuildHeader(headers)
 
 	_, err := s.Write([]byte(header))
-	s.Writer.Flush()
+
 	return err
 }
