@@ -110,8 +110,7 @@ func StartClient() {
 			body := string(buffer[:n])
 
 			terminal.Print("---------------------------------------\n")
-			terminal.Print("sender: %s\nmessage: \n", headers["sender"])
-			terminal.Print("%s\n", body)
+			terminal.Print("sender: %s\nmessage: %s\n", headers["sender"], body)
 			terminal.Print("---------------------------------------\n")
 
 		case "file/notification":
