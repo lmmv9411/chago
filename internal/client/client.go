@@ -15,10 +15,6 @@ var Ip string
 var User string
 var terminal = &Terminal{}
 
-func printOutput(format string, args ...any) {
-	terminal.Print(format, args...)
-}
-
 func StartClient() {
 
 	r := bufio.NewReader(os.Stdin)
@@ -74,21 +70,21 @@ func StartClient() {
 		headers, _, err := protocolchat.ReadHeaders(reader)
 
 		if err != nil {
-			printOutput("%s\n", err.Error())
+			terminal.Print("%s\n", err.Error())
 			return
 		}
 
 		size, ok := headers["size"]
 
 		if !ok {
-			printOutput("header size no existe.\n")
+			terminal.Print("header size no existe.\n")
 			return
 		}
 
 		n, err := strconv.Atoi(size)
 
 		if err != nil {
-			printOutput("Error en cast de header size: %s\n", err)
+			terminal.Print("Error en cast de header size: %s\n", err)
 			return
 		}
 
@@ -97,7 +93,7 @@ func StartClient() {
 		kind, ok := headers["content-type"]
 
 		if !ok {
-			printOutput("header content-type no existe.\n")
+			terminal.Print("header content-type no existe.\n")
 			return
 		}
 
@@ -107,28 +103,28 @@ func StartClient() {
 			n, err := reader.Read(buffer)
 
 			if err != nil {
-				printOutput("%s", err.Error())
+				terminal.Print("%s", err.Error())
 				return
 			}
 
 			body := string(buffer[:n])
 
-			printOutput("---------------------------------------\n")
-			printOutput("sender: %s\nmessage: \n", headers["sender"])
-			printOutput("%s\n", body)
-			printOutput("---------------------------------------\n")
+			terminal.Print("---------------------------------------\n")
+			terminal.Print("sender: %s\nmessage: \n", headers["sender"])
+			terminal.Print("%s\n", body)
+			terminal.Print("---------------------------------------\n")
 
 		case "file/notification":
 			go downloadFile(headers)
 		case "response":
 			if msg, err := response(headers); err != nil {
-				printOutput("%s\n", err.Error())
+				terminal.Print("%s\n", err.Error())
 				return
 			} else {
-				printOutput("%s\n", *msg)
+				terminal.Print("%s\n", *msg)
 			}
 		default:
-			printOutput("Error de cabezera 'content-type'= ¡no reconocido!\n")
+			terminal.Print("Error de cabezera 'content-type'= ¡no reconocido!\n")
 		}
 	}
 
@@ -142,7 +138,7 @@ func handleWrite(conn net.Conn) {
 	for scanner.Scan() {
 
 		if err := scanner.Err(); err != nil {
-			printOutput("Error al leer texto: %s\n", err)
+			terminal.Print("Error al leer texto: %s\n", err)
 			continue
 		}
 
@@ -154,7 +150,7 @@ func handleWrite(conn net.Conn) {
 			err := sendFile(scanner, conn)
 
 			if err != nil {
-				printOutput("%s\n", err.Error())
+				terminal.Print("%s\n", err.Error())
 				continue
 			}
 
@@ -168,7 +164,7 @@ func handleWrite(conn net.Conn) {
 			_, err := conn.Write([]byte(header + bodyMessage))
 
 			if err != nil {
-				printOutput("Error enviando mensaje: %s\n", err)
+				terminal.Print("Error enviando mensaje: %s\n", err)
 				return
 			}
 
