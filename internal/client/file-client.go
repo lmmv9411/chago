@@ -17,7 +17,7 @@ import (
 
 func sendFile(scanner *bufio.Scanner, conn net.Conn) error {
 
-	terminal.Print("Escribir ruta de archivo:")
+	fmt.Print("Escribir ruta de archivo:")
 
 	scanner.Scan()
 
@@ -37,19 +37,19 @@ func sendToServer(filePath string, connMsg net.Conn) {
 	info, err := os.Stat(filePath)
 
 	if err != nil {
-		terminal.Print("%s\n", err.Error())
+		printOutput("%s\n", err.Error())
 		return
 	}
 
 	if info.IsDir() {
-		terminal.Print("Es un directorio\n")
+		printOutput("Es un directorio\n")
 		return
 	}
 
 	file, err := os.Open(filePath)
 
 	if err != nil {
-		terminal.Print("%s\n", err.Error())
+		printOutput("%s\n", err.Error())
 		return
 	}
 
@@ -66,7 +66,7 @@ func sendToServer(filePath string, connMsg net.Conn) {
 	conn, err := net.Dial("tcp", Ip+":8081")
 
 	if err != nil {
-		terminal.Print("Error al conectar a servidor files: %v\n", err)
+		printOutput("Error al conectar a servidor files: %v\n", err)
 		return
 	}
 
@@ -75,44 +75,32 @@ func sendToServer(filePath string, connMsg net.Conn) {
 	_, err = conn.Write([]byte(headersStr))
 
 	if err != nil {
-		terminal.Print("Error al enviar header al servidor-files: %s\n", err)
+		printOutput("Error al enviar header al servidor-files: %s\n", err)
 		return
 	}
 
 	r := bufio.NewReader(conn)
 
 	if _, err := isOk(r); err != nil {
-		terminal.Print("%s\n", err)
+		printOutput("%s\n", err)
 		return
 	}
 
-	state := &ProgressState{
-		total:    info.Size(),
-		barWidth: 30,
-	}
-
-	terminal.SetProgress(state)
-	terminal.StartProgress()
-	defer terminal.StopProgress()
-
-	progress := &ProgressWriter{
-		writer: conn,
-		state:  state,
-	}
+	progress := &ProgressWriter{writer: conn, total: info.Size(), barWidth: 30}
 
 	_, err = io.CopyN(progress, file, info.Size())
 
 	if err != nil {
-		terminal.Print("Error al enviar archivo al servidor-files: %s\n", err)
+		printOutput("Error al enviar archivo al servidor-files: %s\n", err)
 		return
 	}
 
 	if _, err := isOk(r); err != nil {
-		terminal.Print("%s\n", err)
+		printOutput("%s\n", err)
 		return
 	}
 
-	terminal.Print("\nArchivo enviado y recibido por el servidor.\n")
+	printOutput("\nArchivo enviado y recibido por el servidor.\n")
 
 	headers = make(map[string]string)
 	headers["content-type"] = "file/notification"
@@ -125,7 +113,7 @@ func sendToServer(filePath string, connMsg net.Conn) {
 	_, err = connMsg.Write([]byte(header))
 
 	if err != nil {
-		terminal.Print("Error enviando file/notification: %s\n", err.Error())
+		printOutput("Error enviando file/notification: %s\n", err.Error())
 		return
 	}
 
@@ -138,26 +126,26 @@ func downloadFile(headers map[string]string) {
 	fileName, ok := headers["filename"]
 
 	if !ok {
-		terminal.Print("sin header filename\n")
+		printOutput("sin header filename\n")
 		return
 	}
 
 	sender, ok := headers["sender"]
 
 	if !ok {
-		terminal.Print("sin header sender\n")
+		printOutput("sin header sender\n")
 		return
 	}
 
 	size, err := strconv.ParseInt(sizeS, 10, 64)
 
 	if err != nil {
-		terminal.Print("Error cast header size\n")
+		printOutput("Error cast header size\n")
 		return
 	}
 
 	if size < 0 || size > protocolfile.GiB {
-		terminal.Print("Archivo excede tamaño permitido\n")
+		printOutput("Archivo excede tamaño permitido\n")
 		return
 	}
 
@@ -165,14 +153,14 @@ func downloadFile(headers map[string]string) {
 	currentDir, err := os.Getwd()
 
 	if err != nil {
-		terminal.Print("Error al obtener directorio\n")
+		printOutput("Error al obtener directorio\n")
 		return
 	}
 
 	err = os.MkdirAll(filepath.Join(currentDir, "downloads"), 0755)
 
 	if err != nil {
-		terminal.Print("Error al crear directorio\n")
+		printOutput("Error al crear directorio\n")
 		return
 	}
 
@@ -182,32 +170,20 @@ func downloadFile(headers map[string]string) {
 	file, err := os.Create(filePath)
 
 	if err != nil {
-		terminal.Print("Error al crear archivo.\n")
+		printOutput("Error al crear archivo.\n")
 		return
 	}
 
 	defer file.Close()
 
-	state := &ProgressState{
-		total:    size,
-		barWidth: 30,
-	}
+	progress := &ProgressWriter{total: size, writer: file, barWidth: 30}
 
-	terminal.SetProgress(state)
-	terminal.StartProgress()
-	defer terminal.StopProgress()
-
-	progress := &ProgressWriter{
-		writer: file,
-		state:  state,
-	}
-
-	terminal.Print("%s envio archivo: %s\n", sender, fileName)
+	printOutput("%s envio archivo: %s\n", sender, fileName)
 
 	conn, err := net.Dial("tcp", Ip+":8081")
 
 	if err != nil {
-		terminal.Print("Error al conectar a servidor files: %v\n", err)
+		printOutput("Error al conectar a servidor files: %v\n", err)
 		return
 	}
 
@@ -221,25 +197,25 @@ func downloadFile(headers map[string]string) {
 	_, err = conn.Write([]byte(header))
 
 	if err != nil {
-		terminal.Print("Error al enviar headers request\n")
+		printOutput("Error al enviar headers request\n")
 		return
 	}
 
 	_, err = io.CopyN(progress, conn, size)
 
 	if err != nil {
-		terminal.Print("Error en el stream de archivo\n")
+		printOutput("Error en el stream de archivo\n")
 		return
 	}
 
 	r := bufio.NewReader(conn)
 
 	if _, err := isOk(r); err != nil {
-		terminal.Print("%v\n", err)
+		printOutput("%v\n", err)
 		return
 	}
 
-	terminal.Print("\nArchivo recibido de %s: %s\n", sender, fileName)
+	printOutput("\nArchivo recibido de %s: %s\n", sender, fileName)
 }
 
 func isOk(r *bufio.Reader) (*string, error) {
@@ -271,20 +247,33 @@ func isOk(r *bufio.Reader) (*string, error) {
 }
 
 type ProgressWriter struct {
-	writer io.Writer
-	state  *ProgressState
+	total    int64
+	writer   io.Writer
+	written  int64
+	barWidth int
 }
 
 func (p *ProgressWriter) Write(data []byte) (int, error) {
 	n, err := p.writer.Write(data)
-
 	if err != nil {
 		return n, err
 	}
 
-	p.state.mu.Lock()
-	p.state.written += int64(n)
-	p.state.mu.Unlock()
+	p.written += int64(n)
+	percentage := float64(p.written) / float64(p.total) * 100
+	filled := int((percentage / 100.0) * float64(p.barWidth))
+
+	fmt.Print("\r[")
+
+	for i := range p.barWidth {
+		if i < filled {
+			fmt.Print("█")
+		} else {
+			fmt.Print("░")
+		}
+	}
+
+	printOutput("] %.0f%%", percentage)
 
 	return n, nil
 }
