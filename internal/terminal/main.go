@@ -246,7 +246,7 @@ func simulateIncomingChat() tea.Cmd {
 }
 
 func main() {
-	p := tea.NewProgram(initialModel())
+	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error al ejecutar la aplicación: %v", err)
 	}
