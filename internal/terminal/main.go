@@ -27,57 +27,14 @@ type progressState struct {
 }
 
 type model struct {
-	messages []string
-	textarea textarea.Model
-	viewport viewport.Model
-	err      error
-	bars     map[string]*progressState
-}
-
-func initialModel() model {
-	ta := textarea.New()
-	ta.Placeholder = "Escribir mensaje y presionar Enter..."
-	ta.Focus()
-	ta.SetHeight(1)
-	ta.SetWidth(60)
-	ta.ShowLineNumbers = false
-
-	vp := viewport.New(60, 10)
-	vp.SetContent("[Sistema]: ¡Bienvenido al Chat!")
-
-	prg := progressState{
-		id:       "xxx",
-		percent:  0,
-		filename: "Christian bombole guitar.mp4",
-		step:     0.05,
-		interval: 600 * time.Millisecond,
-		progress: progress.New(
-			progress.WithDefaultGradient(),
-			progress.WithWidth(30),
-		)}
-
-	prgii := progressState{
-		id:       "yyy",
-		percent:  0,
-		filename: "Flamme Kapaya Solo Guitar.mp4",
-		interval: 300 * time.Millisecond,
-		step:     0.10,
-		progress: progress.New(
-			progress.WithDefaultGradient(),
-			progress.WithWidth(30),
-		)}
-
-	bars := make(map[string]*progressState)
-	bars["xxx"] = &prg
-	bars["yyy"] = &prgii
-
-	return model{
-		messages: []string{"[Sistema]: ¡Bienvenido al Chat!"},
-		textarea: ta,
-		viewport: vp,
-		bars:     bars,
-	}
-
+	messages      []string
+	textarea      textarea.Model
+	viewport      viewport.Model
+	err           error
+	bars          map[string]*progressState
+	titleStyle    lipgloss.Style
+	chatBoxStyle  lipgloss.Style
+	inputBoxStyle lipgloss.Style
 }
 
 func (m model) Init() tea.Cmd {
@@ -87,18 +44,6 @@ func (m model) Init() tea.Cmd {
 		simulateDownload("yyy", m.bars["yyy"].interval),
 		simulateIncomingChat(),
 	)
-}
-
-func simulateDownload(id string, interval time.Duration) tea.Cmd {
-	return tea.Tick(interval, func(t time.Time) tea.Msg {
-		return idProgress(id)
-	})
-}
-
-func simulateIncomingChat() tea.Cmd {
-	return tea.Tick(time.Second*5, func(t time.Time) tea.Msg {
-		return inconmingChatMsg("¡Hola tienes un nuevo mensaje de prueba!")
-	})
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -163,10 +108,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.GotoBottom()
 	case tea.WindowSizeMsg:
 
-		headerAndFooterHeight := 10
+		activeBars := len(m.bars)
 
-		m.viewport.Width = msg.Width - 4
-		m.viewport.Height = msg.Height - headerAndFooterHeight
+		chatHeight := max(msg.Height-(11+2*activeBars), 1)
+		chatWidth := max(msg.Width-4, 1)
+
+		m.viewport.Width = chatWidth
+		m.viewport.Height = chatHeight
+
+		m.chatBoxStyle = m.chatBoxStyle.Width(chatWidth)
+		m.titleStyle = m.titleStyle.Width(msg.Width)
+		m.textarea.SetWidth(chatWidth - 4)
+		m.inputBoxStyle = m.inputBoxStyle.Width(chatWidth)
+
+		m.messages = append(m.messages, fmt.Sprintf("[Soporte]: w%d h%d", msg.Width, msg.Height))
+		m.viewport.SetContent(strings.Join(m.messages, "\n"))
+		m.viewport.GotoBottom()
 
 	}
 
@@ -183,6 +140,42 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
+
+	viewSections := []string{
+		m.titleStyle.Render("--- CHAGO ---"),
+		m.chatBoxStyle.Render(m.viewport.View()),
+	}
+
+	for _, p := range m.bars {
+		if p.percent < 1.0 {
+			viewSections = append(viewSections, fmt.Sprintf(
+				"Descargando %s: %s",
+				p.filename,
+				p.progress.ViewAs(p.percent)))
+		} else {
+			delete(m.bars, p.id)
+		}
+	}
+
+	viewSections = append(
+		viewSections,
+		m.inputBoxStyle.Render(m.textarea.View()),
+		"(Presiona Ctrl+C o Esc para salir)",
+	)
+
+	return strings.Join(viewSections, "\n")
+}
+
+func initialModel() model {
+	ta := textarea.New()
+	ta.Placeholder = "Escribir mensaje y presionar Enter..."
+	ta.Focus()
+	ta.SetHeight(1)
+	ta.SetWidth(60)
+	ta.ShowLineNumbers = false
+
+	vp := viewport.New(60, 10)
+	vp.SetContent("[Sistema]: ¡Bienvenido al Chat!")
 
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
@@ -202,29 +195,54 @@ func (m model) View() string {
 		Padding(0, 1).
 		Width(60)
 
-	viewSections := []string{
-		titleStyle.Render("--- CHAGO ---"),
-		chatBoxStyle.Render(m.viewport.View()),
+	prg := progressState{
+		id:       "xxx",
+		percent:  0,
+		filename: "Christian bombole guitar.mp4",
+		step:     0.05,
+		interval: 600 * time.Millisecond,
+		progress: progress.New(
+			progress.WithDefaultGradient(),
+			progress.WithWidth(30),
+		)}
+
+	prgii := progressState{
+		id:       "yyy",
+		percent:  0,
+		filename: "Flamme Kapaya Solo Guitar.mp4",
+		interval: 300 * time.Millisecond,
+		step:     0.10,
+		progress: progress.New(
+			progress.WithDefaultGradient(),
+			progress.WithWidth(30),
+		)}
+
+	bars := make(map[string]*progressState)
+	bars["xxx"] = &prg
+	bars["yyy"] = &prgii
+
+	return model{
+		messages:      []string{"[Sistema]: ¡Bienvenido al Chat!"},
+		textarea:      ta,
+		viewport:      vp,
+		bars:          bars,
+		chatBoxStyle:  chatBoxStyle,
+		titleStyle:    titleStyle,
+		inputBoxStyle: inputBoxStyle,
 	}
 
-	for _, p := range m.bars {
-		if p.percent < 1.0 {
-			viewSections = append(viewSections, fmt.Sprintf(
-				"Descargando %s: %s",
-				p.filename,
-				p.progress.ViewAs(p.percent)))
-		} else {
-			delete(m.bars, p.id)
-		}
-	}
+}
 
-	viewSections = append(
-		viewSections,
-		inputBoxStyle.Render(m.textarea.View()),
-		"(Presiona Ctrl+C o Esc para salir)",
-	)
+func simulateDownload(id string, interval time.Duration) tea.Cmd {
+	return tea.Tick(interval, func(t time.Time) tea.Msg {
+		return idProgress(id)
+	})
+}
 
-	return strings.Join(viewSections, "\n")
+func simulateIncomingChat() tea.Cmd {
+	return tea.Tick(time.Second*5, func(t time.Time) tea.Msg {
+		return inconmingChatMsg("¡Hola tienes un nuevo mensaje de prueba!")
+	})
 }
 
 func main() {
