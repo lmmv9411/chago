@@ -1,1 +1,1 @@
-package terminal
+package main
