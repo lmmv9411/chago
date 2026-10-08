@@ -28,44 +28,36 @@ type TransferDoneMsg struct {
 	filename string
 }
 
-type transferErrorMsg struct {
-	filename string
-	err      string
-}
-
 type MultiProgressReader struct {
 	id       string
 	filename string
 	reader   io.Reader
 	total    int64
 	current  int64
-	program  *tea.Program
+	events   chan<- tea.Msg
 }
 
 func (pr *MultiProgressReader) Read(p []byte) (int, error) {
+
 	n, err := pr.reader.Read(p)
+
 	pr.current += int64(n)
 
 	if pr.total > 0 {
-		pr.program.Send(TransferProgressMsg{
+		pr.events <- TransferProgressMsg{
 			id:       pr.id,
 			filename: pr.filename,
 			ratio:    float64(pr.current) / float64(pr.total),
-		})
-	}
-
-	if err == io.EOF {
-		pr.program.Send(TransferDoneMsg{
-			id:       pr.id,
-			filename: pr.filename,
-		})
+		}
 	}
 
 	return n, err
 }
 
-func download() tea.Cmd {
+func download(events chan<- tea.Msg) tea.Cmd {
+
 	return func() tea.Msg {
+
 		size := int64(1024 * 100) //100KiB
 
 		url := fmt.Sprintf("https://httpbin.org/bytes/%d", size)
@@ -73,18 +65,18 @@ func download() tea.Cmd {
 
 		resp, err := http.Get(url)
 		if err != nil {
-			return transferErrorMsg{filename: filepath, err: fmt.Sprintf("Error al realizar la petición: %v", err)}
+			return ErrorChatMsg(fmt.Sprintf("Error al realizar la petición: %v", err))
 		}
 
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
-			return transferErrorMsg{filename: filepath, err: fmt.Sprintf("Servidor retornó estado: %s", resp.Status)}
+			return ErrorChatMsg(fmt.Sprintf("Servidor retornó estado: %s", resp.Status))
 		}
 
 		dest, err := os.Create(filepath)
 		if err != nil {
-			return transferErrorMsg{filename: filepath, err: fmt.Sprintf("Error al crear el archivo local: %v", err)}
+			return ErrorChatMsg(fmt.Sprintf("Error al crear el archivo local: %v", err))
 		}
 		defer dest.Close()
 
@@ -93,17 +85,22 @@ func download() tea.Cmd {
 			filename: "archivo.bin",
 			total:    size,
 			current:  0,
-			program:  p,
 			reader:   resp.Body,
 		}
 
 		_, err = io.CopyN(dest, reader, size)
 
 		if err != nil {
-			return transferErrorMsg{filename: filepath, err: fmt.Sprintf("Error durante el streaming del archivo: %v", err)}
+			return ErrorChatMsg(
+				fmt.Sprintf(
+					"Error durante el streaming del archivo: %v",
+					err,
+				),
+			)
 		}
 
-		p.Send(TransferDoneMsg{id: reader.id, filename: reader.filename})
+		events <- TransferDoneMsg{id: reader.id, filename: reader.filename}
+
 		return nil
 	}
 }

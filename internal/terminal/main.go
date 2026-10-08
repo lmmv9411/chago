@@ -11,22 +11,27 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type inconmingChatMsg string
+type InconmingChatMsg string
+type ErrorChatMsg string
 
 type model struct {
-	transfers     map[string]*TransferInfo
-	messages      []string
-	textarea      textarea.Model
-	viewport      viewport.Model
-	outgoing      chan<- string
-	incoming      <-chan string
+	transfers map[string]*TransferInfo
+	messages  []string
+
+	textarea textarea.Model
+	viewport viewport.Model
+
+	outgoing chan<- string
+	events   chan tea.Msg
+
 	titleStyle    lipgloss.Style
 	chatBoxStyle  lipgloss.Style
 	inputBoxStyle lipgloss.Style
 	errorStyle    lipgloss.Style
 }
 
-func initialModel(outgoing chan<- string, incoming <-chan string) model {
+func initialModel(outgoing chan<- string, events chan tea.Msg) model {
+
 	ta := textarea.New()
 	ta.Placeholder = "Escribir mensaje y presionar Enter..."
 	ta.Focus()
@@ -58,23 +63,39 @@ func initialModel(outgoing chan<- string, incoming <-chan string) model {
 	errorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
 
 	return model{
-		messages:      []string{"[Sistema]: ¡Bienvenido al Chat!"},
-		textarea:      ta,
-		viewport:      vp,
-		outgoing:      outgoing,
-		incoming:      incoming,
+		messages:  []string{"[Sistema]: ¡Bienvenido al Chat!"},
+		transfers: make(map[string]*TransferInfo),
+
+		textarea: ta,
+		viewport: vp,
+
+		outgoing: outgoing,
+		events:   events,
+
 		chatBoxStyle:  chatBoxStyle,
 		titleStyle:    titleStyle,
 		inputBoxStyle: inputBoxStyle,
 		errorStyle:    errorStyle,
-		transfers:     make(map[string]*TransferInfo),
 	}
 
+}
+
+func waitForEvent(events <-chan tea.Msg) tea.Cmd {
+	return func() tea.Msg {
+		msg, ok := <-events
+
+		if !ok {
+			return nil
+		}
+
+		return msg
+	}
 }
 
 func (m model) Init() tea.Cmd {
 	return tea.Batch(
 		textarea.Blink,
+		waitForEvent(m.events),
 	)
 }
 
@@ -96,7 +117,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			if strings.HasPrefix(v, "/download") {
 				m.textarea.Reset()
-				return m, download()
+				return m, download(m.events)
 			}
 
 			m.messages = append(m.messages, fmt.Sprintf("[yo]: %s", v))
@@ -110,7 +131,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport, cmd = m.viewport.Update(msg)
 			cmds = append(cmds, cmd)
 		}
-	case inconmingChatMsg:
+	case InconmingChatMsg:
 		m.messages = append(m.messages, string(msg))
 
 		m.viewport.SetContent(strings.Join(m.messages, "\n"))
@@ -137,13 +158,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			delete(m.transfers, msg.id)
 		}
-	case transferErrorMsg:
-		m.messages = append(m.messages, m.errorStyle.Render(fmt.Sprintf("[Sistema]: %s", msg.err)))
+	case ErrorChatMsg:
+		m.messages = append(m.messages, m.errorStyle.Render(fmt.Sprintf("[Sistema]: %s", msg)))
 		m.viewport.SetContent(strings.Join(m.messages, "\n"))
 		m.viewport.GotoBottom()
 	case tea.WindowSizeMsg:
 
-		chatHeight := max(msg.Height-(11), 1)
+		chatHeight := max(msg.Height-(7), 1)
 		chatWidth := max(msg.Width-4, 1)
 
 		m.viewport.Width = chatWidth
@@ -155,6 +176,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.inputBoxStyle = m.inputBoxStyle.Width(chatWidth)
 
 	}
+
+	cmds = append(cmds, waitForEvent(m.events))
 
 	m.textarea, cmd = m.textarea.Update(msg)
 	cmds = append(cmds, cmd)
@@ -195,13 +218,6 @@ func (m model) View() string {
 	return strings.Join(viewSections, "\n")
 }
 
-var p *tea.Program
-
-func WriteMsg(msg string) tea.Cmd {
-	p.Send(inconmingChatMsg(msg))
-	return nil
-}
-
 func sendChatMessage(outgoing chan<- string, message string) tea.Cmd {
 	return func() tea.Msg {
 		outgoing <- message
@@ -209,22 +225,12 @@ func sendChatMessage(outgoing chan<- string, message string) tea.Cmd {
 	}
 }
 
-func Run(inc chan<- string, outgoing <-chan string) {
+func Run(outdoing chan<- string, events chan tea.Msg) {
 
-	p = tea.NewProgram(initialModel(inc, outgoing), tea.WithAltScreen())
-
-	go incomingMessages(outgoing)
+	p := tea.NewProgram(initialModel(outdoing, events), tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error al ejecutar la aplicación: %v", err)
-	}
-
-}
-
-func incomingMessages(incoming <-chan string) {
-
-	for msg := range incoming {
-		p.Send(inconmingChatMsg(msg))
 	}
 
 }

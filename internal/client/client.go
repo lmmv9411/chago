@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/lmmv9411/chago/internal/protocolchat"
 	"github.com/lmmv9411/chago/internal/terminal"
 )
@@ -71,15 +72,15 @@ func StartClient() {
 	fmt.Println("Conectado al servidor")
 
 	in := make(chan string)
-	out := make(chan string)
+	events := make(chan tea.Msg)
 
 	go handleWrite(conn, in)
-	go handleRead(conn, out)
+	go handleRead(conn, events)
 
-	terminal.Run(in, out)
+	terminal.Run(in, events)
 }
 
-func handleRead(conn net.Conn, out chan<- string) {
+func handleRead(conn net.Conn, events chan tea.Msg) {
 
 	reader := bufio.NewReader(conn)
 
@@ -87,21 +88,21 @@ func handleRead(conn net.Conn, out chan<- string) {
 		headers, _, err := protocolchat.ReadHeaders(reader)
 
 		if err != nil {
-			out <- fmt.Sprintf("%s\n", err.Error())
+			events <- terminal.ErrorChatMsg(fmt.Sprintf("%s\n", err.Error()))
 			return
 		}
 
 		size, ok := headers["size"]
 
 		if !ok {
-			out <- "header size no existe.\n"
+			events <- terminal.ErrorChatMsg("header size no existe.\n")
 			return
 		}
 
 		n, err := strconv.Atoi(size)
 
 		if err != nil {
-			out <- fmt.Sprintf("Error en cast de header size: %s\n", err)
+			events <- terminal.ErrorChatMsg(fmt.Sprintf("Error en cast de header size: %s\n", err))
 			return
 		}
 
@@ -110,7 +111,7 @@ func handleRead(conn net.Conn, out chan<- string) {
 		kind, ok := headers["content-type"]
 
 		if !ok {
-			out <- "header content-type no existe.\n"
+			events <- terminal.ErrorChatMsg("header content-type no existe.\n")
 			return
 		}
 
@@ -120,25 +121,25 @@ func handleRead(conn net.Conn, out chan<- string) {
 			n, err := reader.Read(buffer)
 
 			if err != nil {
-				out <- fmt.Sprintf("%s", err.Error())
+				events <- terminal.ErrorChatMsg(fmt.Sprintf("%s", err.Error()))
 				return
 			}
 
 			body := string(buffer[:n])
 
-			out <- fmt.Sprintf("[sender: %s]\nmessage: %s\n", headers["sender"], body)
+			events <- terminal.InconmingChatMsg(fmt.Sprintf("[sender: %s]\nmessage: %s\n", headers["sender"], body))
 
 		case "file/notification":
 			go downloadFile(headers)
 		case "response":
 			if msg, err := response(headers); err != nil {
-				out <- fmt.Sprintf("%s\n", err.Error())
+				events <- terminal.ErrorChatMsg(fmt.Sprintf("%s\n", err.Error()))
 				return
 			} else {
-				out <- fmt.Sprintf("%s\n", *msg)
+				events <- terminal.InconmingChatMsg(fmt.Sprintf("%s\n", *msg))
 			}
 		default:
-			out <- "Error de cabezera 'content-type'= ¡no reconocido!\n"
+			events <- terminal.ErrorChatMsg("Error de cabezera 'content-type'= ¡no reconocido!\n")
 		}
 	}
 }
