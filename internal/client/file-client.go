@@ -15,7 +15,9 @@ import (
 	"github.com/lmmv9411/chago/internal/serverfiles"
 )
 
-func sendFile(scanner *bufio.Scanner, conn net.Conn) error {
+func sendFile(conn net.Conn) error {
+
+	scanner := bufio.NewScanner(os.Stdin)
 
 	fmt.Print("Escribir ruta de archivo:")
 

@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/lmmv9411/chago/internal/protocolchat"
+	"github.com/lmmv9411/chago/internal/terminal"
 )
 
 var Ip string
@@ -24,11 +25,11 @@ func printOutput(format string, args ...any) {
 
 func StartClient() {
 
-	r := bufio.NewReader(os.Stdin)
+	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Print("Escribir direccion ip ó [ y ] para usar por defecto: ")
 
-	inputIP, err := r.ReadString('\n')
+	inputIP, err := reader.ReadString('\n')
 
 	if err != nil {
 		fmt.Println("Error al leer ip", err)
@@ -49,7 +50,7 @@ func StartClient() {
 	}
 
 	fmt.Print("Escribir nombre de usuario: ")
-	inputUser, err := r.ReadString('\n')
+	inputUser, err := reader.ReadString('\n')
 
 	if err != nil {
 		fmt.Println("Error al leer usuario", err)
@@ -69,7 +70,16 @@ func StartClient() {
 
 	fmt.Println("Conectado al servidor")
 
-	go handleWrite(conn)
+	in := make(chan string)
+	out := make(chan string)
+
+	go handleWrite(conn, in)
+	go handleRead(conn, out)
+
+	terminal.Run(in, out)
+}
+
+func handleRead(conn net.Conn, out chan<- string) {
 
 	reader := bufio.NewReader(conn)
 
@@ -77,21 +87,21 @@ func StartClient() {
 		headers, _, err := protocolchat.ReadHeaders(reader)
 
 		if err != nil {
-			printOutput("%s\n", err.Error())
+			out <- fmt.Sprintf("%s\n", err.Error())
 			return
 		}
 
 		size, ok := headers["size"]
 
 		if !ok {
-			printOutput("header size no existe.\n")
+			out <- "header size no existe.\n"
 			return
 		}
 
 		n, err := strconv.Atoi(size)
 
 		if err != nil {
-			printOutput("Error en cast de header size: %s\n", err)
+			out <- fmt.Sprintf("Error en cast de header size: %s\n", err)
 			return
 		}
 
@@ -100,7 +110,7 @@ func StartClient() {
 		kind, ok := headers["content-type"]
 
 		if !ok {
-			printOutput("header content-type no existe.\n")
+			out <- "header content-type no existe.\n"
 			return
 		}
 
@@ -110,52 +120,41 @@ func StartClient() {
 			n, err := reader.Read(buffer)
 
 			if err != nil {
-				printOutput("%s", err.Error())
+				out <- fmt.Sprintf("%s", err.Error())
 				return
 			}
 
 			body := string(buffer[:n])
 
-			printOutput("---------------------------------------\n")
-			printOutput("sender: %s\nmessage: \n", headers["sender"])
-			printOutput("%s\n", body)
-			printOutput("---------------------------------------\n")
+			out <- fmt.Sprintf("[sender: %s]\nmessage: %s\n", headers["sender"], body)
 
 		case "file/notification":
 			go downloadFile(headers)
 		case "response":
 			if msg, err := response(headers); err != nil {
-				printOutput("%s\n", err.Error())
+				out <- fmt.Sprintf("%s\n", err.Error())
 				return
 			} else {
-				printOutput("%s\n", *msg)
+				out <- fmt.Sprintf("%s\n", *msg)
 			}
 		default:
-			printOutput("Error de cabezera 'content-type'= ¡no reconocido!\n")
+			out <- "Error de cabezera 'content-type'= ¡no reconocido!\n"
 		}
 	}
-
 }
 
-func handleWrite(conn net.Conn) {
+func handleWrite(conn net.Conn, in <-chan string) {
 
-	scanner := bufio.NewScanner(os.Stdin)
 	headers := make(map[string]string)
-	var mutex sync.Mutex
 
-	for scanner.Scan() {
+	for msg := range in {
 
-		if err := scanner.Err(); err != nil {
-			printOutput("Error al leer texto: %s\n", err)
-			continue
-		}
-
-		bodyMessage := scanner.Text()
+		bodyMessage := msg
 
 		switch bodyMessage {
 		case "/file":
 
-			err := sendFile(scanner, conn)
+			err := sendFile(conn)
 
 			if err != nil {
 				printOutput("%s\n", err.Error())
@@ -169,14 +168,12 @@ func handleWrite(conn net.Conn) {
 
 			header := protocolchat.BuildHeader(headers)
 
-			mutex.Lock()
 			_, err := conn.Write([]byte(header + bodyMessage))
 
 			if err != nil {
 				printOutput("Error enviando mensaje: %s\n", err)
 				return
 			}
-			mutex.Unlock()
 
 		}
 
