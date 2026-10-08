@@ -115,7 +115,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 
-			if strings.HasPrefix(v, "/download") {
+			if strings.HasPrefix(v, "/file") {
 				m.textarea.Reset()
 				return m, download(m.events)
 			}
