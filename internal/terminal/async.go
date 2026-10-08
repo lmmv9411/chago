@@ -86,6 +86,7 @@ func download(events chan<- tea.Msg) tea.Cmd {
 			total:    size,
 			current:  0,
 			reader:   resp.Body,
+			events:   events,
 		}
 
 		_, err = io.CopyN(dest, reader, size)
