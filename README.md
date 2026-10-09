@@ -1,95 +1,114 @@
-# Chat TCP en Go
+# Chago
 
-Sistema cliente-servidor concurrente en Go que usa sockets TCP para intercambio de mensajes y transferencia de archivos.
+Aplicación de chat cliente-servidor escrita en Go. Los clientes intercambian mensajes mediante TCP y pueden compartir archivos a través de un servicio TCP independiente.
 
 ## Características
 
-- Chat en tiempo real entre clientes conectados al servidor de chat.
-- Transferencia de archivos por un servicio independiente en TCP (puerto 8081).
-- Notificación automática en el chat cuando se comparte un archivo.
-- Descarga de archivos al directorio `downloads/` desde el cliente.
-- Almacenamiento de archivos recibidos en `uploads/` por el servidor de archivos.
+- Chat en tiempo real entre los clientes conectados.
+- Servidor de chat concurrente que retransmite mensajes a los demás clientes.
+- Envío y descarga de archivos mediante un servicio de archivos separado.
+- Notificaciones en el chat cuando un cliente comparte un archivo.
+- Indicadores de progreso para las transferencias activas, conservando el orden en que comenzaron.
+- Cliente de terminal interactivo con Bubble Tea.
 
-## Estructura del proyecto
+## Arquitectura del proyecto
 
 ```text
 cmd/
-  chat-server/   # Inicia el servidor de chat y el servidor de archivos
-  client/        # Punto de entrada del cliente
-  file-server/   # Servidor de archivos independiente
+  chat-server/   # Inicia conjuntamente los servidores de chat y de archivos
+  client/        # Inicia el cliente de terminal
+  file-server/   # Inicia únicamente el servidor de archivos
 internal/
-  client/        # Lógica del cliente, lectura del teclado y manejo de mensajes
-  serverchat/    # Servidor del chat
-  serverfiles/   # Servidor de archivos
-  protocolchat/  # Construcción y lectura de headers del protocolo de chat
-  protocolfile/  # Construcción y lectura de headers del protocolo de archivos
+  client/        # Conexiones, envío de mensajes y transferencias de archivos
+  protocolchat/  # Lectura y construcción de headers del protocolo de chat
+  protocolfile/  # Lectura y construcción de headers del protocolo de archivos
+  serverchat/    # Aceptación de clientes y retransmisión de mensajes
+  serverfiles/   # Recepción y entrega de archivos
+  terminal/      # Interfaz de terminal y progreso de transferencias
 ```
 
-Los ejecutables viven en `cmd/` y la lógica reutilizable, que no se expone como API pública del módulo, en `internal/`.
+El código de aplicación está en `internal/`; los programas ejecutables están en `cmd/`.
 
 ## Requisitos
 
-- Go instalado y configurado en el sistema.
-- Acceso a la red local para que los clientes se conecten al mismo puerto.
+- Go instalado. La versión del módulo está especificada en `go.mod`.
+- Acceso de red entre los clientes y el equipo donde se ejecutan los servidores.
+- Puertos TCP `8080` y `8081` disponibles para los servicios.
 
-## Cómo ejecutar
+## Ejecución
 
-1. Inicia el servidor principal (chat + archivos):
+### Iniciar el sistema completo
+
+En una terminal, desde la raíz del repositorio:
 
 ```bash
 go run ./cmd/chat-server
 ```
 
-Esto levanta:
-- servidor de chat en el puerto `8080`
-- servidor de archivos en el puerto `8081`
+Este comando inicia ambos servicios:
 
-2. En otra terminal, inicia el cliente:
+- Chat en TCP `:8080`.
+- Archivos en TCP `:8081`.
+
+El proceso se mantiene activo mientras ambos servidores estén ejecutándose.
+
+### Iniciar un cliente
+
+En otra terminal, ejecuta:
 
 ```bash
 go run ./cmd/client
 ```
 
-3. Si quieres arrancar solo el servidor de archivos de forma independiente:
+Inicia el comando en cada terminal o equipo que quieras conectar al chat.
+
+### Iniciar solo el servidor de archivos
+
+También se puede ejecutar de forma independiente:
 
 ```bash
 go run ./cmd/file-server
 ```
 
-## Uso del cliente
+Este comando inicia únicamente el servicio TCP de archivos en `:8081`. Para usar el cliente completo también debe estar disponible el servidor de chat en `:8080`.
 
-Al ejecutar el cliente se te pedirá:
+## Uso
 
-- una dirección IP del servidor
-- un nombre de usuario
-
-Para usar la IP por defecto, escribe `y` cuando te pregunte la dirección. El valor por defecto configurado en el cliente es `192.168.1.33`.
+Al iniciar, el cliente solicita la dirección IP del servidor y un nombre de usuario. Escribe la IP del equipo que ejecuta los servidores. Si se escribe `y` para usar la dirección predeterminada, el cliente intenta conectarse a `192.168.1.33`. Luego solicita el nombre de usuario.
 
 ### Enviar mensajes
 
-Escribe directamente el texto y se enviará al servidor del chat.
+Escribe el mensaje en la interfaz y presiona Enter. El servidor de chat lo retransmite a los demás clientes conectados.
 
-### Enviar un archivo
+### Compartir un archivo
 
-Escribe:
+Escribe `/file` seguido de la ruta local del archivo:
 
 ```text
-/file
+/file /ruta/al/archivo
 ```
 
-Luego se te pedirá la ruta del archivo local que deseas compartir. El cliente lo envía al servidor de archivos y luego notifica al chat con el nombre del archivo.
+El cliente sube el archivo al servidor de archivos. Cuando la transferencia termina, notifica a los clientes del chat para que puedan descargarlo. El servidor guarda los archivos compartidos en `uploads/`.
 
-### Descargar un archivo recibido
+### Recibir un archivo
 
-Cuando otro usuario comparte un archivo, el cliente recibe una notificación del tipo `file/notification` y descarga automáticamente el archivo en el directorio local `downloads/`.
+Al recibir una notificación de archivo, el cliente descarga automáticamente el archivo desde el servidor de archivos y lo guarda en `downloads/`. La interfaz muestra el progreso de cada transferencia activa; si hay varias, las presenta en el orden en que comenzaron.
 
-## Directorios de salida
+### Controles de la interfaz
 
-- Archivos subidos al servidor: `uploads/`
-- Archivos descargados por el cliente: `downloads/`
+- Enter: enviar el texto escrito.
+- Page Up / Page Down: desplazarse por los mensajes.
+- Ctrl+C o Esc: salir del cliente.
 
-> Los directorios se crean al momento de ejecutar los servicios si no existen.
+## Almacenamiento y límites
 
-## Nota
+- `uploads/`: directorio relativo al directorio de trabajo del proceso del servidor de archivos.
+- `downloads/`: directorio relativo al directorio de trabajo del proceso cliente.
+- El servicio de archivos acepta transferencias de hasta 1 GiB.
+- Los mensajes de chat tienen un tamaño máximo de 1 KiB.
 
-Este proyecto está orientado a un entorno de laboratorio o prueba local, por lo que la configuración de la IP y los puertos se asume dentro de la misma red local.
+Los directorios de almacenamiento se crean si no existen. Los archivos con el mismo nombre se guardan usando ese nombre, por lo que una transferencia posterior puede reemplazar un archivo existente.
+
+## Red y seguridad
+
+Los servidores escuchan en todas las interfaces de red (`:8080` y `:8081`). Asegúrate de que los puertos sean accesibles desde los clientes y de que las reglas de firewall permitan las conexiones necesarias. El proyecto está pensado para pruebas o redes de confianza; no implementa autenticación ni cifrado del tráfico.
