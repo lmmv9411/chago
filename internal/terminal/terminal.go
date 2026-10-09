@@ -169,6 +169,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.textarea.SetWidth(chatWidth - 4)
 		m.inputBoxStyle = m.inputBoxStyle.Width(chatWidth)
 
+		if len(m.transfers) > 0 {
+			for _, t := range m.transfers {
+				t.progress.Width = chatWidth
+			}
+		}
 	}
 
 	cmds = append(cmds, waitForEvent(m.events))
