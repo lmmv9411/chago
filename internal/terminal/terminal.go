@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 type InconmingChatMsg string
@@ -117,7 +118,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.messages = append(m.messages, fmt.Sprintf("[yo]: %s", v))
 			m.textarea.Reset()
 
-			m.viewport.SetContent(strings.Join(m.messages, "\n"))
+			m.refreshViewport()
 			m.viewport.GotoBottom()
 
 			return m, sendChatMessage(m.outgoing, v)
@@ -128,7 +129,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case InconmingChatMsg:
 		m.messages = append(m.messages, string(msg))
 
-		m.viewport.SetContent(strings.Join(m.messages, "\n"))
+		m.refreshViewport()
 		m.viewport.GotoBottom()
 
 	case TransferProgressMsg:
@@ -136,7 +137,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !exist {
 			prog := progress.New(
 				progress.WithDefaultGradient(),
-				progress.WithWidth(60),
+				progress.WithWidth(m.viewport.Width),
 			)
 			t = &TransferInfo{id: msg.id, filename: msg.filename, progress: prog}
 			m.transfers[msg.id] = t
@@ -147,14 +148,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case TransferDoneMsg:
 		if t, existe := m.transfers[msg.id]; existe {
 			m.messages = append(m.messages, fmt.Sprintf("[Sistema]: %s finalizada.", t.filename))
-			m.viewport.SetContent(strings.Join(m.messages, "\n"))
+			m.refreshViewport()
 			m.viewport.GotoBottom()
 
 			delete(m.transfers, msg.id)
 		}
 	case ErrorChatMsg:
 		m.messages = append(m.messages, m.errorStyle.Render(fmt.Sprintf("[Sistema]: %s", msg)))
-		m.viewport.SetContent(strings.Join(m.messages, "\n"))
+		m.refreshViewport()
 		m.viewport.GotoBottom()
 	case tea.WindowSizeMsg:
 
@@ -168,10 +169,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.titleStyle = m.titleStyle.Width(msg.Width)
 		m.textarea.SetWidth(chatWidth - 4)
 		m.inputBoxStyle = m.inputBoxStyle.Width(chatWidth)
+		wasAtBottom := m.viewport.AtBottom()
+		m.refreshViewport()
+		if wasAtBottom {
+			m.viewport.GotoBottom()
+		}
 
 		if len(m.transfers) > 0 {
 			for _, t := range m.transfers {
-				t.progress.Width = chatWidth
+				t.progress.Width = m.viewport.Width
 			}
 		}
 	}
@@ -188,6 +194,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, tea.Batch(cmds...)
+}
+
+func (m *model) refreshViewport() {
+	content := strings.Join(m.messages, "\n")
+	m.viewport.SetContent(ansi.Wrap(content, max(m.viewport.Width, 1), ""))
 }
 
 func (m model) View() string {
