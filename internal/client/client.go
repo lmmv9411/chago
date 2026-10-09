@@ -64,7 +64,7 @@ func StartClient() {
 	fmt.Println("Conectado al servidor")
 
 	incoming := make(chan string)
-	events := make(chan tea.Msg)
+	events := make(chan tea.Msg, 100)
 
 	go handleWrite(conn, incoming, events)
 	go handleRead(conn, events)
@@ -119,16 +119,16 @@ func handleRead(conn net.Conn, events chan tea.Msg) {
 
 			body := string(buffer[:n])
 
-			events <- terminal.InconmingChatMsg(fmt.Sprintf("[sender: %s]\nmessage: %s\n", headers["sender"], body))
+			events <- terminal.InconmingChatMsg(fmt.Sprintf("[%s]: %s\n", headers["sender"], body))
 
 		case "file/notification":
 			go downloadFile(headers, events)
 		case "response":
-			if msg, err := response(headers); err != nil {
+			if _, err := response(headers); err != nil {
 				events <- terminal.ErrorChatMsg(fmt.Sprintf("%s\n", err.Error()))
 				return
-			} else {
-				events <- terminal.InconmingChatMsg(fmt.Sprintf("%s\n", *msg))
+				// } else {
+				// 	events <- terminal.InconmingChatMsg(fmt.Sprintf("%s\n", *msg))
 			}
 		default:
 			events <- terminal.ErrorChatMsg("Error de cabezera 'content-type'= ¡no reconocido!\n")
