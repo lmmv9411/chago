@@ -119,7 +119,7 @@ func handleRead(conn net.Conn, events chan tea.Msg) {
 
 			body := string(buffer[:n])
 
-			events <- terminal.InconmingChatMsg(fmt.Sprintf("[%s]: %s\n", headers["sender"], body))
+			events <- terminal.InconmingChatMsg(fmt.Sprintf("[%s]: %s", headers["sender"], body))
 
 		case "file/notification":
 			go downloadFile(headers, events)
