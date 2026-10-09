@@ -29,6 +29,7 @@ type model struct {
 	chatBoxStyle  lipgloss.Style
 	inputBoxStyle lipgloss.Style
 	errorStyle    lipgloss.Style
+	progressStyle lipgloss.Style
 }
 
 func initialModel(outgoing chan<- string, events chan tea.Msg) model {
@@ -63,6 +64,8 @@ func initialModel(outgoing chan<- string, events chan tea.Msg) model {
 
 	errorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
 
+	progressStyle := lipgloss.NewStyle().Padding(0, 1)
+
 	return model{
 		messages:  []string{"[Sistema]: ¡Bienvenido al Chat!"},
 		transfers: make(map[string]*TransferInfo),
@@ -77,6 +80,7 @@ func initialModel(outgoing chan<- string, events chan tea.Msg) model {
 		titleStyle:    titleStyle,
 		inputBoxStyle: inputBoxStyle,
 		errorStyle:    errorStyle,
+		progressStyle: progressStyle,
 	}
 
 }
@@ -137,7 +141,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !exist {
 			prog := progress.New(
 				progress.WithDefaultGradient(),
-				progress.WithWidth(m.viewport.Width),
+				progress.WithWidth(max(m.viewport.Width-2, 1)),
 			)
 			t = &TransferInfo{id: msg.id, filename: msg.filename, progress: prog}
 			m.transfers[msg.id] = t
@@ -169,15 +173,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.titleStyle = m.titleStyle.Width(msg.Width)
 		m.textarea.SetWidth(chatWidth - 4)
 		m.inputBoxStyle = m.inputBoxStyle.Width(chatWidth)
+
 		wasAtBottom := m.viewport.AtBottom()
+
 		m.refreshViewport()
+
 		if wasAtBottom {
 			m.viewport.GotoBottom()
 		}
 
 		if len(m.transfers) > 0 {
 			for _, t := range m.transfers {
-				t.progress.Width = m.viewport.Width
+				t.progress.Width = max(m.viewport.Width-2, 1)
 			}
 		}
 	}
@@ -213,7 +220,7 @@ func (m model) View() string {
 			linea := fmt.Sprintf(
 				"[%s]\n%s\n",
 				t.filename,
-				t.progress.ViewAs(t.percent),
+				m.progressStyle.Render(t.progress.ViewAs(t.percent)),
 			)
 			viewSections = append(viewSections, linea)
 		}
