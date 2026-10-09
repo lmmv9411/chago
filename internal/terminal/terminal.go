@@ -195,7 +195,7 @@ func (m model) View() string {
 	if len(m.transfers) > 0 {
 		for _, t := range m.transfers {
 			linea := fmt.Sprintf(
-				"[%s]: %s\n",
+				"[%s]\n%s\n",
 				t.filename,
 				t.progress.ViewAs(t.percent),
 			)
