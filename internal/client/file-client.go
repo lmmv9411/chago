@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/lmmv9411/chago/internal/protocolchat"
@@ -243,12 +244,14 @@ func isOk(r *bufio.Reader) (*string, error) {
 }
 
 type ProgressWriter struct {
-	total    int64
-	writer   io.Writer
-	written  int64
-	id       string
-	filename string
-	events   chan<- tea.Msg
+	total          int64
+	writer         io.Writer
+	written        int64
+	id             string
+	filename       string
+	events         chan<- tea.Msg
+	hasReported    bool
+	lastProgressAt time.Time
 }
 
 func (p *ProgressWriter) Write(data []byte) (int, error) {
@@ -259,11 +262,21 @@ func (p *ProgressWriter) Write(data []byte) (int, error) {
 
 	p.written += int64(n)
 	if p.total > 0 {
-		p.events <- terminal.NewTransferProgressMsg(
-			p.id,
-			p.filename,
-			float64(p.written)/float64(p.total),
-		)
+
+		now := time.Now()
+		ratio := float64(p.written) / float64(p.total)
+		completed := p.written >= p.total
+
+		if !p.hasReported || now.Sub(p.lastProgressAt) >= 150*time.Millisecond || completed {
+
+			p.events <- terminal.NewTransferProgressMsg(
+				p.id,
+				p.filename,
+				ratio,
+			)
+			p.lastProgressAt = now
+			p.hasReported = true
+		}
 	}
 
 	return n, nil

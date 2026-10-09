@@ -64,7 +64,7 @@ func StartClient() {
 	fmt.Println("Conectado al servidor")
 
 	incoming := make(chan string)
-	events := make(chan tea.Msg, 100)
+	events := make(chan tea.Msg)
 
 	go handleWrite(conn, incoming, events)
 	go handleRead(conn, events)
