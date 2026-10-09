@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/lmmv9411/chago/internal/protocolchat"
@@ -16,13 +15,6 @@ import (
 
 var Ip string
 var User string
-var outputMu sync.Mutex
-
-func printOutput(format string, args ...any) {
-	outputMu.Lock()
-	defer outputMu.Unlock()
-	fmt.Printf(format, args...)
-}
 
 func StartClient() {
 
@@ -71,13 +63,13 @@ func StartClient() {
 
 	fmt.Println("Conectado al servidor")
 
-	in := make(chan string)
+	incoming := make(chan string)
 	events := make(chan tea.Msg)
 
-	go handleWrite(conn, in)
+	go handleWrite(conn, incoming, events)
 	go handleRead(conn, events)
 
-	terminal.Run(in, events)
+	terminal.Run(incoming, events)
 }
 
 func handleRead(conn net.Conn, events chan tea.Msg) {
@@ -130,7 +122,7 @@ func handleRead(conn net.Conn, events chan tea.Msg) {
 			events <- terminal.InconmingChatMsg(fmt.Sprintf("[sender: %s]\nmessage: %s\n", headers["sender"], body))
 
 		case "file/notification":
-			go downloadFile(headers)
+			go downloadFile(headers, events)
 		case "response":
 			if msg, err := response(headers); err != nil {
 				events <- terminal.ErrorChatMsg(fmt.Sprintf("%s\n", err.Error()))
@@ -144,38 +136,39 @@ func handleRead(conn net.Conn, events chan tea.Msg) {
 	}
 }
 
-func handleWrite(conn net.Conn, in <-chan string) {
+func handleWrite(conn net.Conn, incoming chan string, events chan tea.Msg) {
 
 	headers := make(map[string]string)
 
-	for msg := range in {
+	for msg := range incoming {
 
 		bodyMessage := msg
 
-		switch bodyMessage {
-		case "/file":
+		if after, ok := strings.CutPrefix(bodyMessage, "/file"); ok {
 
-			err := sendFile(conn)
+			filePath := strings.TrimSpace(after)
 
-			if err != nil {
-				printOutput("%s\n", err.Error())
+			if filePath == "" {
+				events <- terminal.ErrorChatMsg("Escribir la ruta del archivo")
 				continue
 			}
 
-		default:
-			headers["content-type"] = "text/plain"
-			headers["size"] = strconv.Itoa(len(bodyMessage))
-			headers["sender"] = User
+			go sendToServer(filePath, conn, events)
 
-			header := protocolchat.BuildHeader(headers)
+			continue
+		}
 
-			_, err := conn.Write([]byte(header + bodyMessage))
+		headers["content-type"] = "text/plain"
+		headers["size"] = strconv.Itoa(len(bodyMessage))
+		headers["sender"] = User
 
-			if err != nil {
-				printOutput("Error enviando mensaje: %s\n", err)
-				return
-			}
+		header := protocolchat.BuildHeader(headers)
 
+		_, err := conn.Write([]byte(header + bodyMessage))
+
+		if err != nil {
+			events <- terminal.ErrorChatMsg(fmt.Sprintf("Error enviando mensaje: %s\n", err))
+			return
 		}
 
 	}

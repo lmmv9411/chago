@@ -28,6 +28,18 @@ type TransferDoneMsg struct {
 	filename string
 }
 
+func NewTransferProgressMsg(id, filename string, ratio float64) tea.Msg {
+	return TransferProgressMsg{
+		id:       id,
+		filename: filename,
+		ratio:    ratio,
+	}
+}
+
+func NewTransferDoneMsg(id, filename string) tea.Msg {
+	return TransferDoneMsg{id: id, filename: filename}
+}
+
 type MultiProgressReader struct {
 	id       string
 	filename string

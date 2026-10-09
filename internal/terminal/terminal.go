@@ -115,11 +115,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 
-			if strings.HasPrefix(v, "/file") {
-				m.textarea.Reset()
-				return m, download(m.events)
-			}
-
 			m.messages = append(m.messages, fmt.Sprintf("[yo]: %s", v))
 			m.textarea.Reset()
 
