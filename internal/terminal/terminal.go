@@ -171,7 +171,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if len(m.transfers) > 0 {
 			for _, t := range m.transfers {
-				t.progress.Width = chatWidth
+				t.progress.Width = chatWidth - 6
 			}
 		}
 	}
