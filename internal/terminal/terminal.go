@@ -87,7 +87,6 @@ func waitForEvent(events <-chan tea.Msg) tea.Cmd {
 		if !ok {
 			return nil
 		}
-
 		return msg
 	}
 }
