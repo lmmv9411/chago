@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/lmmv9411/chago/internal/protocolchat"
@@ -97,6 +98,12 @@ func handleRead(conn net.Conn, events chan tea.Msg) {
 			return
 		}
 
+		if n < 0 {
+			events <- terminal.
+				ErrorChatMsg("header: 'size' valor negativo")
+			return
+		}
+
 		kind, ok := headers["content-type"]
 
 		if !ok {
@@ -143,6 +150,7 @@ func handleRead(conn net.Conn, events chan tea.Msg) {
 
 func handleWrite(conn net.Conn, incoming chan string, events chan tea.Msg) {
 	headers := make(map[string]string)
+	writer := &Writer{conn: conn}
 
 	for msg := range incoming {
 
@@ -157,7 +165,7 @@ func handleWrite(conn net.Conn, incoming chan string, events chan tea.Msg) {
 				continue
 			}
 
-			go sendToServer(filePath, conn, events)
+			go sendToServer(filePath, writer, events)
 
 			continue
 		}
@@ -168,11 +176,22 @@ func handleWrite(conn net.Conn, incoming chan string, events chan tea.Msg) {
 
 		header := protocolchat.BuildHeader(headers)
 
-		_, err := conn.Write([]byte(header + bodyMessage))
+		_, err := writer.Write([]byte(header + bodyMessage))
 		if err != nil {
 			events <- terminal.ErrorChatMsg(fmt.Sprintf("Error enviando mensaje: %s\n", err))
 			return
 		}
 
 	}
+}
+
+type Writer struct {
+	conn net.Conn
+	mu   sync.Mutex
+}
+
+func (w *Writer) Write(p []byte) (n int, err error) {
+	defer w.mu.Unlock()
+	w.mu.Lock()
+	return w.conn.Write(p)
 }

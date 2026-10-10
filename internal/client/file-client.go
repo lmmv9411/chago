@@ -18,7 +18,7 @@ import (
 	"github.com/lmmv9411/chago/internal/terminal"
 )
 
-func sendToServer(filePath string, connMsg net.Conn, events chan<- tea.Msg) {
+func sendToServer(filePath string, w io.Writer, events chan<- tea.Msg) {
 
 	info, err := os.Stat(filePath)
 
@@ -102,7 +102,7 @@ func sendToServer(filePath string, connMsg net.Conn, events chan<- tea.Msg) {
 
 	header := protocolchat.BuildHeader(headers)
 
-	_, err = connMsg.Write([]byte(header))
+	_, err = w.Write([]byte(header))
 
 	if err != nil {
 		events <- terminal.ErrorChatMsg(fmt.Sprintf("Error enviando file/notification: %v", err))
