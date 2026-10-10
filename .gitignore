@@ -8,6 +8,9 @@
 uploads/
 downloads/
 
+server
+client
+
 # Directorios de compilación
 bin/
 dist/

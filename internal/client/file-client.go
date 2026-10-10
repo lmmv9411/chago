@@ -49,7 +49,7 @@ func sendToServer(filePath string, connMsg net.Conn, events chan<- tea.Msg) {
 
 	headersStr := protocolfile.BuildHeader(headers)
 
-	conn, err := net.Dial("tcp", Ip+":8081")
+	conn, err := net.Dial("tcp", IP+":8081")
 
 	if err != nil {
 		events <- terminal.ErrorChatMsg(fmt.Sprintf("Error al conectar a servidor files: %v", err))
@@ -177,7 +177,7 @@ func downloadFile(headers map[string]string, events chan<- tea.Msg) {
 	}
 	events <- terminal.InconmingChatMsg(fmt.Sprintf("%s envio archivo: %s", sender, fileName))
 
-	conn, err := net.Dial("tcp", Ip+":8081")
+	conn, err := net.Dial("tcp", IP+":8081")
 
 	if err != nil {
 		events <- terminal.ErrorChatMsg(fmt.Sprintf("Error al conectar a servidor files: %v", err))
