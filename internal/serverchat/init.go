@@ -209,7 +209,7 @@ func handleConnection(conn *Connection, events chan<- Event) {
 				address: address,
 			}
 
-			fmt.Printf("%s: %s\n", sender, body)
+			//fmt.Printf("%s: %s\n", sender, body)
 
 		case "file/notification":
 			events <- Event{
