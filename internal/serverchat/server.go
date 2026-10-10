@@ -10,12 +10,6 @@ import (
 	"github.com/lmmv9411/chago/internal/protocolchat"
 )
 
-const (
-	KiB           = 1024
-	MaxSenderSize = 64
-	MaxBodySize   = KiB
-)
-
 type Status int
 
 const (

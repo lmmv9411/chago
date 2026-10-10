@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+
+	"github.com/lmmv9411/chago/internal/protocolchat"
 )
 
 func StartServer() {
@@ -149,7 +151,7 @@ func handleConnection(conn *Connection, events chan<- Event) {
 			return
 		}
 
-		if len(sender) > MaxSenderSize {
+		if len(sender) > protocolchat.MaxSenderSize {
 			msg := "Valor de header 'sender' de header excede limite tamaño"
 			fmt.Println(msg)
 			conn.SendError(msg, RequestError)
@@ -180,7 +182,7 @@ func handleConnection(conn *Connection, events chan<- Event) {
 				return
 			}
 
-			if size < 0 || size > MaxBodySize {
+			if size < 0 || size > protocolchat.MaxBodySize {
 				msg := "Body mensaje excede tamaño limite."
 				fmt.Println(msg)
 				conn.SendError(msg, RequestError)

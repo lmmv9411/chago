@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/lmmv9411/chago/internal/protocolchat"
@@ -53,7 +54,8 @@ func StartClient() {
 
 	User = strings.TrimSpace(inputUser)
 
-	conn, err := net.Dial("tcp", IP+":8080")
+	conn, err := net.DialTimeout("tcp", IP+":8080", 5*time.Second)
+
 	if err != nil {
 		fmt.Println("Error al conectar:", err)
 		return
@@ -104,6 +106,11 @@ func handleRead(conn net.Conn, events chan tea.Msg) {
 			return
 		}
 
+		if n > protocolchat.MaxBodySize {
+			events <- terminal.ErrorChatMsg("Error: Size-Body declarado en headers excede limite")
+			return
+		}
+
 		kind, ok := headers["content-type"]
 
 		if !ok {
@@ -144,6 +151,7 @@ func handleRead(conn net.Conn, events chan tea.Msg) {
 				ErrorChatMsg(
 					"Error de cabezera 'content-type'= ¡no reconocido!\n",
 				)
+			return
 		}
 	}
 }
