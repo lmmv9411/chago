@@ -19,7 +19,7 @@ func StartServer() {
 
 	fmt.Println("Servidor chat escuchando en el puerto 8080...")
 
-	events := make(chan Event, 10)
+	events := make(chan Event, 100)
 	go server(events)
 
 	for {
@@ -46,6 +46,19 @@ func server(events chan Event) {
 
 	users := make(map[string]*Client)
 
+	disconnect := func(address string) {
+		client, ok := users[address]
+		if !ok || client == nil {
+			return
+		}
+
+		close(client.done)
+		close(client.in)
+		client.conn.CloseConn()
+
+		delete(users, address)
+	}
+
 	for event := range events {
 
 		switch event.kind {
@@ -65,18 +78,7 @@ func server(events chan Event) {
 
 		case disconnection:
 
-			client, ok := users[event.address]
-
-			if !ok || client == nil {
-				continue
-			}
-
-			close(client.done)
-			close(client.in)
-
-			client.conn.CloseConn()
-
-			delete(users, event.address)
+			disconnect(event.address)
 
 		case message:
 			for address, client := range users {
@@ -86,10 +88,11 @@ func server(events chan Event) {
 				select {
 				case client.in <- &Outgoing{message: event.message}:
 				default:
-					events <- Event{
-						kind:    disconnection,
-						address: client.address,
-					}
+					fmt.Printf(
+						"Cola llena: desconectando cliente %s\n",
+						address,
+					)
+					disconnect(address)
 				}
 
 			}
@@ -99,8 +102,6 @@ func server(events chan Event) {
 }
 
 func handleConnection(conn *Connection, events chan<- Event) {
-
-	defer conn.CloseConn()
 
 	address := conn.RemoteAddress()
 
@@ -225,7 +226,14 @@ func handleConnection(conn *Connection, events chan<- Event) {
 			return
 		}
 
-		conn.SendOk("Mensaje enviado")
+		if err := conn.SendOk("Mensaje enviado"); err != nil {
+			fmt.Println("Error enviando respuesta:", err)
+			events <- Event{
+				kind:    disconnection,
+				address: address,
+			}
+			return
+		}
 
 	}
 

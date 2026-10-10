@@ -32,6 +32,12 @@ func worker(c *Client, e chan<- Event) {
 			}
 
 			if _, err := c.conn.Write([]byte(o.message)); err != nil {
+				select {
+				case <-c.done:
+					//la desconexión ya estaba encurso
+					return
+				default:
+				}
 				fmt.Println("Error enviando stream message to client: ", err)
 				e <- Event{kind: disconnection, address: c.address}
 				return

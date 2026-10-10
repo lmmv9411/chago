@@ -2,7 +2,6 @@ package serverchat
 
 import (
 	"bufio"
-	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -64,12 +63,10 @@ func (c *Connection) Write(buffer []byte) (int, error) {
 
 	n, err := c.Writer.Write(buffer)
 	if err != nil {
-		fmt.Println("Error on Write server*: ", err)
 		return n, err
 	}
 
 	if err := c.Writer.Flush(); err != nil {
-		fmt.Println("Error on Flush server*: ", err)
 		return n, err
 	}
 
