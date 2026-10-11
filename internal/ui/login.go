@@ -25,8 +25,7 @@ var (
 
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("212")).
-			Width(40)
+			Foreground(lipgloss.Color("212"))
 
 	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Bold(true)
 
@@ -149,6 +148,11 @@ func (l loginmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			l.errorMsg = ""
 		}
+	case tea.WindowSizeMsg:
+		width := max(msg.Width-45, 1)
+		height := max(msg.Height-13, 1)
+		containerStyle = containerStyle.Width(width)
+		containerStyle = containerStyle.Height(height)
 	}
 
 	// Enviar eventos de teclado al input que tiene el foco actual
