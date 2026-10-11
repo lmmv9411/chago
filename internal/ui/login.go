@@ -26,10 +26,16 @@ var (
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("212")).
-			Width(40).
-			AlignHorizontal(lipgloss.Center)
+			Width(40)
 
 	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Bold(true)
+
+	containerStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).       // Borde redondeado (como border-radius / border-style)
+			BorderForeground(lipgloss.Color("63")). // Color del borde (azul)
+			Padding(0, 3).                          // Padding interno (arriba/abajo, izq/der)
+			Width(44).
+			AlignHorizontal(lipgloss.Center)
 )
 
 const (
@@ -67,7 +73,7 @@ func initLoginModel() loginmodel {
 
 	user := textinput.New()
 	user.Placeholder = "leo"
-	user.Prompt = "     Usuario > "
+	user.Prompt = "Usuario > "
 	user.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 	user.PlaceholderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240")) // Color del placeholder (Gris)
 	user.TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("63"))         // Color del texto escrito
@@ -207,7 +213,7 @@ func (l loginmodel) View() string {
 				"Ctrl + C ó ESC para salir."),
 	)
 
-	return strings.Join(viewSections, "\n")
+	return containerStyle.Render(strings.Join(viewSections, "\n"))
 }
 
 func LoginMain() *LoginData {
