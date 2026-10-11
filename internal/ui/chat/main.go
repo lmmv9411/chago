@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 )
 
 type (
@@ -67,8 +68,7 @@ func (m chatmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case TransferDoneMsg:
 		m.handleTransferDone(msg)
 	case ErrorChatMsg:
-		m.appendMessage(
-			errorChatStyle.Render(fmt.Sprintf("[Sistema]: %s", msg)))
+		m.appendMessage(errorChatStyle.Render(fmt.Sprintf("[Sistema]: %s", msg)))
 	case tea.WindowSizeMsg:
 		m.handleWindowSize(msg)
 	}
@@ -92,7 +92,8 @@ func (m chatmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *chatmodel) refreshViewport() {
-	content := strings.Join(m.messages, "\n\n")
+	content := strings.Join(m.messages, "\n")
+	m.viewport.SetContent(ansi.Wrap(content, max(m.viewport.Width, 1), ""))
 	m.viewport.SetContent(content)
 }
 
