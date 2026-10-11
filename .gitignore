@@ -8,7 +8,7 @@
 uploads/
 downloads/
 
-server
+/server
 /client
 
 # Directorios de compilación
