@@ -8,6 +8,7 @@ import (
 
 	"github.com/lmmv9411/chago/internal/protocolchat"
 	"github.com/lmmv9411/chago/internal/ui"
+	"github.com/lmmv9411/chago/internal/ui/chat"
 )
 
 func StartClient() {
@@ -43,7 +44,7 @@ func StartClient() {
 	go handleWrite(client)
 	go handleRead(client)
 
-	ui.Run(client.incoming, client.events)
+	chat.Run(client.incoming, client.events)
 }
 
 func handleRead(c *Client) {
@@ -51,20 +52,20 @@ func handleRead(c *Client) {
 	for {
 		headers, _, err := protocolchat.ReadHeaders(c.conn.reader)
 		if err != nil {
-			c.events <- ui.ErrorChatMsg(fmt.Sprintf("%s\n", err.Error()))
+			c.events <- chat.ErrorChatMsg(fmt.Sprintf("%s\n", err.Error()))
 			return
 		}
 
 		size, ok := headers["size"]
 
 		if !ok {
-			c.events <- ui.ErrorChatMsg("header size no existe.\n")
+			c.events <- chat.ErrorChatMsg("header size no existe.\n")
 			return
 		}
 
 		n, err := strconv.Atoi(size)
 		if err != nil {
-			c.events <- ui.
+			c.events <- chat.
 				ErrorChatMsg(
 					fmt.Sprintf("Error en cast de header size: %s\n", err),
 				)
@@ -72,7 +73,7 @@ func handleRead(c *Client) {
 		}
 
 		if n < 0 {
-			c.events <- ui.
+			c.events <- chat.
 				ErrorChatMsg("header: 'size' valor negativo")
 			return
 		}
@@ -80,7 +81,7 @@ func handleRead(c *Client) {
 		kind, ok := headers["content-type"]
 
 		if !ok {
-			c.events <- ui.ErrorChatMsg("header content-type no existe.\n")
+			c.events <- chat.ErrorChatMsg("header content-type no existe.\n")
 			return
 		}
 
@@ -88,7 +89,7 @@ func handleRead(c *Client) {
 		case "text/plain":
 
 			if n < 0 || n > protocolchat.MaxBodySize {
-				c.events <- ui.ErrorChatMsg(
+				c.events <- chat.ErrorChatMsg(
 					"Error: Size-Body declarado en headers" +
 						" rango < 0 o superior al límite.")
 				return
@@ -99,12 +100,12 @@ func handleRead(c *Client) {
 			n, err := io.ReadFull(c.conn.reader, buffer)
 
 			if err != nil {
-				c.events <- ui.ErrorChatMsg(fmt.Sprintf("%s", err.Error()))
+				c.events <- chat.ErrorChatMsg(fmt.Sprintf("%s", err.Error()))
 				return
 			}
 
-			c.events <- ui.
-				InconmingChatMsg(
+			c.events <- chat.
+				IncomingChatMsg(
 					fmt.Sprintf("[%s]: %s",
 						headers["sender"],
 						string(buffer[:n])),
@@ -114,13 +115,13 @@ func handleRead(c *Client) {
 			go downloadFile(headers, c)
 		case "response":
 			if _, err := response(headers); err != nil {
-				c.events <- ui.ErrorChatMsg(fmt.Sprintf("%s\n", err.Error()))
+				c.events <- chat.ErrorChatMsg(fmt.Sprintf("%s\n", err.Error()))
 				return
 				// } else {
-				// 	c.events <- ui.InconmingChatMsg(fmt.Sprintf("%s\n", *msg))
+				// 	c.events <- chat.InconmingChatMsg(fmt.Sprintf("%s\n", *msg))
 			}
 		default:
-			c.events <- ui.
+			c.events <- chat.
 				ErrorChatMsg(
 					"Error de cabezera 'content-type'= ¡no reconocido!\n",
 				)
@@ -142,7 +143,7 @@ func handleWrite(c *Client) {
 			filePath := strings.TrimSpace(after)
 
 			if filePath == "" {
-				c.events <- ui.ErrorChatMsg("Escribir la ruta del archivo")
+				c.events <- chat.ErrorChatMsg("Escribir la ruta del archivo")
 				continue
 			}
 
@@ -160,7 +161,7 @@ func handleWrite(c *Client) {
 		_, err := c.conn.Write([]byte(header + bodyMessage))
 
 		if err != nil {
-			c.events <- ui.ErrorChatMsg(fmt.Sprintf("Error enviando mensaje: %s\n", err))
+			c.events <- chat.ErrorChatMsg(fmt.Sprintf("Error enviando mensaje: %s\n", err))
 			return
 		}
 

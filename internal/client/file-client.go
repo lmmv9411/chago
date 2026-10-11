@@ -14,7 +14,7 @@ import (
 	"github.com/lmmv9411/chago/internal/protocolchat"
 	"github.com/lmmv9411/chago/internal/protocolfile"
 	"github.com/lmmv9411/chago/internal/serverfiles"
-	"github.com/lmmv9411/chago/internal/ui"
+	"github.com/lmmv9411/chago/internal/ui/chat"
 )
 
 func sendToServer(filePath string, client *Client) {
@@ -22,21 +22,21 @@ func sendToServer(filePath string, client *Client) {
 	info, err := os.Stat(filePath)
 
 	if err != nil {
-		client.events <- ui.ErrorChatMsg(
+		client.events <- chat.ErrorChatMsg(
 			fmt.Sprintf("Error al acceder al archivo: %v", err),
 		)
 		return
 	}
 
 	if info.IsDir() {
-		client.events <- ui.ErrorChatMsg("Es un directorio")
+		client.events <- chat.ErrorChatMsg("Es un directorio")
 		return
 	}
 
 	file, err := os.Open(filePath)
 
 	if err != nil {
-		client.events <- ui.ErrorChatMsg(
+		client.events <- chat.ErrorChatMsg(
 			fmt.Sprintf("Error al abrir el archivo: %v", err),
 		)
 		return
@@ -55,7 +55,7 @@ func sendToServer(filePath string, client *Client) {
 	server, err := NewConnection(client.conn.address, ":8081")
 
 	if err != nil {
-		client.events <- ui.ErrorChatMsg(
+		client.events <- chat.ErrorChatMsg(
 			fmt.Sprintf("Error al conectar a servidor files: %v", err),
 		)
 		return
@@ -66,14 +66,14 @@ func sendToServer(filePath string, client *Client) {
 	_, err = server.Write([]byte(headersStr))
 
 	if err != nil {
-		client.events <- ui.ErrorChatMsg(
+		client.events <- chat.ErrorChatMsg(
 			fmt.Sprintf("Error al enviar header al servidor-files: %v", err),
 		)
 		return
 	}
 
 	if _, err := isOk(server.reader); err != nil {
-		client.events <- ui.ErrorChatMsg(err.Error())
+		client.events <- chat.ErrorChatMsg(err.Error())
 		return
 	}
 
@@ -88,18 +88,18 @@ func sendToServer(filePath string, client *Client) {
 	_, err = io.CopyN(progress, file, info.Size())
 
 	if err != nil {
-		client.events <- ui.ErrorChatMsg(
+		client.events <- chat.ErrorChatMsg(
 			fmt.Sprintf("Error al enviar archivo al servidor-files: %v", err),
 		)
 		return
 	}
 
 	if _, err := isOk(server.reader); err != nil {
-		client.events <- ui.ErrorChatMsg(err.Error())
+		client.events <- chat.ErrorChatMsg(err.Error())
 		return
 	}
 
-	client.events <- ui.NewTransferDoneMsg(progress.id, progress.filename)
+	client.events <- chat.NewTransferDoneMsg(progress.id, progress.filename)
 
 	headers = make(map[string]string)
 	headers["content-type"] = "file/notification"
@@ -112,7 +112,7 @@ func sendToServer(filePath string, client *Client) {
 	_, err = client.conn.Write([]byte(header))
 
 	if err != nil {
-		client.events <- ui.ErrorChatMsg(
+		client.events <- chat.ErrorChatMsg(
 			fmt.Sprintf("Error enviando file/notification: %v", err),
 		)
 		return
@@ -127,28 +127,28 @@ func downloadFile(headers map[string]string, client *Client) {
 	fileName, ok := headers["filename"]
 
 	if !ok {
-		client.events <- ui.ErrorChatMsg("sin header filename")
+		client.events <- chat.ErrorChatMsg("sin header filename")
 		return
 	}
 
 	sender, ok := headers["sender"]
 
 	if !ok {
-		client.events <- ui.ErrorChatMsg("sin header sender")
+		client.events <- chat.ErrorChatMsg("sin header sender")
 		return
 	}
 
 	size, err := strconv.ParseInt(sizeS, 10, 64)
 
 	if err != nil {
-		client.events <- ui.ErrorChatMsg(
+		client.events <- chat.ErrorChatMsg(
 			fmt.Sprintf("Error cast header size: %v", err),
 		)
 		return
 	}
 
 	if size < 0 || size > protocolfile.GiB {
-		client.events <- ui.ErrorChatMsg("Archivo excede tamaño permitido")
+		client.events <- chat.ErrorChatMsg("Archivo excede tamaño permitido")
 		return
 	}
 
@@ -156,7 +156,7 @@ func downloadFile(headers map[string]string, client *Client) {
 	currentDir, err := os.Getwd()
 
 	if err != nil {
-		client.events <- ui.ErrorChatMsg(
+		client.events <- chat.ErrorChatMsg(
 			fmt.Sprintf("Error al obtener directorio: %v", err),
 		)
 		return
@@ -165,7 +165,7 @@ func downloadFile(headers map[string]string, client *Client) {
 	err = os.MkdirAll(filepath.Join(currentDir, "downloads"), 0755)
 
 	if err != nil {
-		client.events <- ui.ErrorChatMsg(
+		client.events <- chat.ErrorChatMsg(
 			fmt.Sprintf("Error al crear directorio: %v", err),
 		)
 		return
@@ -177,7 +177,7 @@ func downloadFile(headers map[string]string, client *Client) {
 	file, err := os.Create(filePath)
 
 	if err != nil {
-		client.events <- ui.ErrorChatMsg(
+		client.events <- chat.ErrorChatMsg(
 			fmt.Sprintf("Error al crear archivo: %v", err),
 		)
 		return
@@ -192,14 +192,14 @@ func downloadFile(headers map[string]string, client *Client) {
 		filename: fileName,
 		events:   client.events,
 	}
-	client.events <- ui.InconmingChatMsg(
+	client.events <- chat.IncomingChatMsg(
 		fmt.Sprintf("%s envio archivo: %s", sender, fileName),
 	)
 
 	server, err := NewConnection(client.conn.address, ":8081")
 
 	if err != nil {
-		client.events <- ui.ErrorChatMsg(
+		client.events <- chat.ErrorChatMsg(
 			fmt.Sprintf("Error al conectar a servidor files: %v", err),
 		)
 		return
@@ -214,7 +214,7 @@ func downloadFile(headers map[string]string, client *Client) {
 	_, err = server.conn.Write([]byte(header))
 
 	if err != nil {
-		client.events <- ui.ErrorChatMsg(
+		client.events <- chat.ErrorChatMsg(
 			fmt.Sprintf("Error al enviar headers request: %v", err),
 		)
 		return
@@ -223,18 +223,18 @@ func downloadFile(headers map[string]string, client *Client) {
 	_, err = io.CopyN(progress, server.conn, size)
 
 	if err != nil {
-		client.events <- ui.ErrorChatMsg(
+		client.events <- chat.ErrorChatMsg(
 			fmt.Sprintf("Error en el stream de archivo: %v", err),
 		)
 		return
 	}
 
 	if _, err := isOk(server.reader); err != nil {
-		client.events <- ui.ErrorChatMsg(err.Error())
+		client.events <- chat.ErrorChatMsg(err.Error())
 		return
 	}
 
-	client.events <- ui.NewTransferDoneMsg(progress.id, progress.filename)
+	client.events <- chat.NewTransferDoneMsg(progress.id, progress.filename)
 }
 
 func isOk(r *bufio.Reader) (*string, error) {
@@ -291,7 +291,7 @@ func (p *ProgressWriter) Write(data []byte) (int, error) {
 
 		if !p.hasReported || now.Sub(p.lastProgressAt) >= 150*time.Millisecond || completed {
 
-			p.events <- ui.NewTransferProgressMsg(
+			p.events <- chat.NewTransferProgressMsg(
 				p.id,
 				p.filename,
 				ratio,
