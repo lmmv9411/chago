@@ -149,10 +149,10 @@ func (l loginmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			l.errorMsg = ""
 		}
 	case tea.WindowSizeMsg:
-		width := max(msg.Width-45, 1)
-		height := max(msg.Height-13, 1)
+		width := max(msg.Width/3, 1)
+
 		containerStyle = containerStyle.Width(width)
-		containerStyle = containerStyle.Height(height)
+
 	}
 
 	// Enviar eventos de teclado al input que tiene el foco actual
