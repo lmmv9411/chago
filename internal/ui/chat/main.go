@@ -94,7 +94,6 @@ func (m chatmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *chatmodel) refreshViewport() {
 	content := strings.Join(m.messages, "\n")
 	m.viewport.SetContent(ansi.Wrap(content, max(m.viewport.Width, 1), ""))
-	m.viewport.SetContent(content)
 }
 
 func (m *chatmodel) appendMessage(msg string) {
