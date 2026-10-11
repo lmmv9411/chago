@@ -1,4 +1,4 @@
-package terminal
+package ui
 
 import (
 	"fmt"
@@ -19,7 +19,7 @@ type (
 	ErrorChatMsg     string
 )
 
-type model struct {
+type chatmodel struct {
 	transfers      map[string]*TransferInfo
 	transfersOrder []string
 	messages       []string
@@ -37,7 +37,7 @@ type model struct {
 	progressStyle lipgloss.Style
 }
 
-func initialModel(outgoing chan<- string, events chan tea.Msg) model {
+func initChatModel(outgoing chan<- string, events chan tea.Msg) chatmodel {
 	ti := textinput.New()
 	ti.Placeholder = "Escribir mensaje y presionar Enter..."
 	ti.Prompt = "> "
@@ -72,7 +72,7 @@ func initialModel(outgoing chan<- string, events chan tea.Msg) model {
 
 	progressStyle := lipgloss.NewStyle().Padding(0, 1)
 
-	return model{
+	return chatmodel{
 		messages:  []string{"[Sistema]: ¡Bienvenido al Chat!"},
 		transfers: make(map[string]*TransferInfo),
 
@@ -101,14 +101,14 @@ func waitForEvent(events <-chan tea.Msg) tea.Cmd {
 	}
 }
 
-func (m model) Init() tea.Cmd {
+func (m chatmodel) Init() tea.Cmd {
 	return tea.Batch(
 		textarea.Blink,
 		waitForEvent(m.events),
 	)
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m chatmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
 
@@ -218,12 +218,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m *model) refreshViewport() {
+func (m *chatmodel) refreshViewport() {
 	content := strings.Join(m.messages, "\n")
 	m.viewport.SetContent(ansi.Wrap(content, max(m.viewport.Width, 1), ""))
 }
 
-func (m model) View() string {
+func (m chatmodel) View() string {
 	viewSections := []string{
 		m.titleStyle.Render("--- CHAGO ---"),
 		m.chatBoxStyle.Render(m.viewport.View()),
@@ -263,7 +263,7 @@ func sendChatMessage(outgoing chan<- string, message string) tea.Cmd {
 }
 
 func Run(outdoing chan<- string, events chan tea.Msg) {
-	p := tea.NewProgram(initialModel(outdoing, events), tea.WithAltScreen())
+	p := tea.NewProgram(initChatModel(outdoing, events), tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error al ejecutar la aplicación: %v", err)

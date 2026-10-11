@@ -1,99 +1,70 @@
 package client
 
 import (
-	"bufio"
 	"fmt"
 	"io"
-	"net"
-	"os"
 	"strconv"
 	"strings"
-	"sync"
-	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/lmmv9411/chago/internal/protocolchat"
-	"github.com/lmmv9411/chago/internal/terminal"
-)
-
-var (
-	IP   string
-	User string
+	"github.com/lmmv9411/chago/internal/ui"
 )
 
 func StartClient() {
-	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Print("Escribir direccion ip ó [ y ] para usar por defecto: ")
+	data := ui.LoginMain()
 
-	inputIP, err := reader.ReadString('\n')
-	if err != nil {
-		fmt.Println("Error al leer ip", err)
+	if data == nil {
 		return
 	}
 
-	inputIP = strings.TrimSpace(inputIP)
-
-	if inputIP == "y" {
-		IP = "192.168.1.33"
-	} else {
-		if net.ParseIP(inputIP) == nil {
-			fmt.Println("¡Dirección ip inválida!...")
-			return
-		}
-		IP = inputIP
-
+	if data.Address == "" {
+		data.Address = "192.168.1.33"
 	}
 
-	fmt.Print("Escribir nombre de usuario: ")
-	inputUser, err := reader.ReadString('\n')
-	if err != nil {
-		fmt.Println("Error al leer usuario", err)
+	if data.User == "" {
+		fmt.Println("Usuario no puede esar vacío")
 		return
 	}
 
-	User = strings.TrimSpace(inputUser)
-
-	conn, err := net.DialTimeout("tcp", IP+":8080", 5*time.Second)
+	server, err := NewConnection(data.Address, ":8080")
 
 	if err != nil {
 		fmt.Println("Error al conectar:", err)
 		return
 	}
 
-	defer conn.Close()
+	defer server.conn.Close()
+
+	client := NewClient(data.User, server)
 
 	fmt.Println("Conectado al servidor")
 
-	incoming := make(chan string)
-	events := make(chan tea.Msg)
+	go handleWrite(client)
+	go handleRead(client)
 
-	go handleWrite(conn, incoming, events)
-	go handleRead(conn, events)
-
-	terminal.Run(incoming, events)
+	ui.Run(client.incoming, client.events)
 }
 
-func handleRead(conn net.Conn, events chan tea.Msg) {
-	reader := bufio.NewReader(conn)
+func handleRead(c *Client) {
 
 	for {
-		headers, _, err := protocolchat.ReadHeaders(reader)
+		headers, _, err := protocolchat.ReadHeaders(c.conn.reader)
 		if err != nil {
-			events <- terminal.ErrorChatMsg(fmt.Sprintf("%s\n", err.Error()))
+			c.events <- ui.ErrorChatMsg(fmt.Sprintf("%s\n", err.Error()))
 			return
 		}
 
 		size, ok := headers["size"]
 
 		if !ok {
-			events <- terminal.ErrorChatMsg("header size no existe.\n")
+			c.events <- ui.ErrorChatMsg("header size no existe.\n")
 			return
 		}
 
 		n, err := strconv.Atoi(size)
 		if err != nil {
-			events <- terminal.
+			c.events <- ui.
 				ErrorChatMsg(
 					fmt.Sprintf("Error en cast de header size: %s\n", err),
 				)
@@ -101,36 +72,38 @@ func handleRead(conn net.Conn, events chan tea.Msg) {
 		}
 
 		if n < 0 {
-			events <- terminal.
+			c.events <- ui.
 				ErrorChatMsg("header: 'size' valor negativo")
-			return
-		}
-
-		if n > protocolchat.MaxBodySize {
-			events <- terminal.ErrorChatMsg("Error: Size-Body declarado en headers excede limite")
 			return
 		}
 
 		kind, ok := headers["content-type"]
 
 		if !ok {
-			events <- terminal.ErrorChatMsg("header content-type no existe.\n")
+			c.events <- ui.ErrorChatMsg("header content-type no existe.\n")
 			return
 		}
 
 		switch kind {
 		case "text/plain":
 
-			buffer := make([]byte, n)
-
-			n, err := io.ReadFull(reader, buffer)
-
-			if err != nil {
-				events <- terminal.ErrorChatMsg(fmt.Sprintf("%s", err.Error()))
+			if n < 0 || n > protocolchat.MaxBodySize {
+				c.events <- ui.ErrorChatMsg(
+					"Error: Size-Body declarado en headers" +
+						" rango < 0 o superior al límite.")
 				return
 			}
 
-			events <- terminal.
+			buffer := make([]byte, n)
+
+			n, err := io.ReadFull(c.conn.reader, buffer)
+
+			if err != nil {
+				c.events <- ui.ErrorChatMsg(fmt.Sprintf("%s", err.Error()))
+				return
+			}
+
+			c.events <- ui.
 				InconmingChatMsg(
 					fmt.Sprintf("[%s]: %s",
 						headers["sender"],
@@ -138,16 +111,16 @@ func handleRead(conn net.Conn, events chan tea.Msg) {
 				)
 
 		case "file/notification":
-			go downloadFile(headers, events)
+			go downloadFile(headers, c)
 		case "response":
 			if _, err := response(headers); err != nil {
-				events <- terminal.ErrorChatMsg(fmt.Sprintf("%s\n", err.Error()))
+				c.events <- ui.ErrorChatMsg(fmt.Sprintf("%s\n", err.Error()))
 				return
 				// } else {
-				// 	events <- terminal.InconmingChatMsg(fmt.Sprintf("%s\n", *msg))
+				// 	c.events <- ui.InconmingChatMsg(fmt.Sprintf("%s\n", *msg))
 			}
 		default:
-			events <- terminal.
+			c.events <- ui.
 				ErrorChatMsg(
 					"Error de cabezera 'content-type'= ¡no reconocido!\n",
 				)
@@ -156,11 +129,11 @@ func handleRead(conn net.Conn, events chan tea.Msg) {
 	}
 }
 
-func handleWrite(conn net.Conn, incoming chan string, events chan tea.Msg) {
-	headers := make(map[string]string)
-	writer := &Writer{conn: conn}
+func handleWrite(c *Client) {
 
-	for msg := range incoming {
+	headers := make(map[string]string)
+
+	for msg := range c.incoming {
 
 		bodyMessage := msg
 
@@ -169,37 +142,27 @@ func handleWrite(conn net.Conn, incoming chan string, events chan tea.Msg) {
 			filePath := strings.TrimSpace(after)
 
 			if filePath == "" {
-				events <- terminal.ErrorChatMsg("Escribir la ruta del archivo")
+				c.events <- ui.ErrorChatMsg("Escribir la ruta del archivo")
 				continue
 			}
 
-			go sendToServer(filePath, writer, events)
+			go sendToServer(filePath, c)
 
 			continue
 		}
 
 		headers["content-type"] = "text/plain"
 		headers["size"] = strconv.Itoa(len(bodyMessage))
-		headers["sender"] = User
+		headers["sender"] = c.name
 
 		header := protocolchat.BuildHeader(headers)
 
-		_, err := writer.Write([]byte(header + bodyMessage))
+		_, err := c.conn.Write([]byte(header + bodyMessage))
+
 		if err != nil {
-			events <- terminal.ErrorChatMsg(fmt.Sprintf("Error enviando mensaje: %s\n", err))
+			c.events <- ui.ErrorChatMsg(fmt.Sprintf("Error enviando mensaje: %s\n", err))
 			return
 		}
 
 	}
-}
-
-type Writer struct {
-	conn net.Conn
-	mu   sync.Mutex
-}
-
-func (w *Writer) Write(p []byte) (n int, err error) {
-	defer w.mu.Unlock()
-	w.mu.Lock()
-	return w.conn.Write(p)
 }
