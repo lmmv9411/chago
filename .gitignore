@@ -9,7 +9,7 @@ uploads/
 downloads/
 
 server
-client
+/client
 
 # Directorios de compilación
 bin/
