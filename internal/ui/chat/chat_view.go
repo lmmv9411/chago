@@ -17,6 +17,11 @@ var (
 			Background(lipgloss.Color("235")).
 			Padding(0, 1)
 
+	messageOtherStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("36")).
+				Background(lipgloss.Color("235")).
+				Padding(0, 1)
+
 	titleChatStyle = lipgloss.NewStyle().
 			Bold(true).
 			Width(60).

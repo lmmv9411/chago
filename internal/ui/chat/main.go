@@ -92,12 +92,20 @@ func (m chatmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *chatmodel) refreshViewport() {
-	content := strings.Join(m.messages, "\n")
-	m.viewport.SetContent(ansi.Wrap(content, max(m.viewport.Width, 1), ""))
+
+	lines := strings.Join(m.messages, "\n\n")
+
+	lines = ansi.Wrap(lines, max(m.viewport.Width-2, 1), "")
+	m.viewport.SetContent(lines)
 }
 
 func (m *chatmodel) appendMessage(msg string) {
-	m.messages = append(m.messages, messageStyle.Render(msg))
+	if strings.HasPrefix(msg, "[yo]:") {
+		msg = messageStyle.Render(msg)
+	} else {
+		msg = messageOtherStyle.Render(msg)
+	}
+	m.messages = append(m.messages, msg)
 	m.refreshViewport()
 	m.viewport.GotoBottom()
 }
