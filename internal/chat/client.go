@@ -1,6 +1,6 @@
-package api
+package chat
 
-type Api interface {
+type Client interface {
 	Send(message string) error
 	Upload(path string) error
 	Close() error

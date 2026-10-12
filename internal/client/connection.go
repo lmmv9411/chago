@@ -26,7 +26,11 @@ func NewConnection(address string, port string) (connection *Connection, err err
 		return nil, errors.New("dirección ip inválida")
 	}
 
-	conn, err := net.DialTimeout("tcp", address+port, 5*time.Second)
+	conn, err := net.DialTimeout(
+		"tcp",
+		net.JoinHostPort(address, port),
+		5*time.Second,
+	)
 
 	if err != nil {
 		return nil, err

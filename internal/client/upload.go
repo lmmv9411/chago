@@ -8,7 +8,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/lmmv9411/chago/internal/api"
+	"github.com/lmmv9411/chago/internal/chat"
 	"github.com/lmmv9411/chago/internal/protocolchat"
 	"github.com/lmmv9411/chago/internal/protocolfile"
 	"github.com/lmmv9411/chago/internal/serverfiles"
@@ -42,7 +42,7 @@ func (c *Client) Upload(filePath string) error {
 
 	headersStr := protocolfile.BuildHeader(headers)
 
-	server, err := NewConnection(c.conn.address, ":8081")
+	server, err := NewConnection(c.conn.address, "8081")
 
 	if err != nil {
 		return fmt.Errorf("Error al conectar a servidor files: %w", err)
@@ -92,8 +92,8 @@ func (c *Client) Upload(filePath string) error {
 		return fmt.Errorf("Error enviando file/notification: %w", err)
 	}
 
-	c.events <- api.Event{
-		Kind:       api.TransferDone,
+	c.events <- chat.Event{
+		Kind:       chat.TransferDone,
 		TransferId: progress.id,
 		FileName:   progress.filename,
 	}

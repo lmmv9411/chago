@@ -4,7 +4,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/lmmv9411/chago/internal/api"
+	"github.com/lmmv9411/chago/internal/chat"
 )
 
 type ProgressWriter struct {
@@ -13,7 +13,7 @@ type ProgressWriter struct {
 	written        int64
 	id             string
 	filename       string
-	events         chan<- api.Event
+	events         chan<- chat.Event
 	hasReported    bool
 	lastProgressAt time.Time
 }
@@ -33,8 +33,8 @@ func (p *ProgressWriter) Write(data []byte) (int, error) {
 
 		if !p.hasReported || now.Sub(p.lastProgressAt) >= 150*time.Millisecond || completed {
 
-			p.events <- api.Event{
-				Kind:       api.TransferProgress,
+			p.events <- chat.Event{
+				Kind:       chat.TransferProgress,
 				TransferId: p.id,
 				FileName:   p.filename,
 				Ratio:      ratio,

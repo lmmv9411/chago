@@ -23,7 +23,7 @@ func run() error {
 		return err
 	}
 
-	c, err := client.Connect(login.Address, ":8080", login.User)
+	c, err := client.Connect(login.Address, "8080", login.User)
 
 	if err != nil {
 		return err

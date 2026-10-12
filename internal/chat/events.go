@@ -1,4 +1,4 @@
-package api
+package chat
 
 type Kind uint8
 

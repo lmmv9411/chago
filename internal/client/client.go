@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/lmmv9411/chago/internal/api"
+	"github.com/lmmv9411/chago/internal/chat"
 	"github.com/lmmv9411/chago/internal/protocolchat"
 )
 
 type Client struct {
 	conn   *Connection
 	name   string
-	events chan api.Event
+	events chan chat.Event
 }
 
-func (c *Client) Events() <-chan api.Event {
+func (c *Client) Events() <-chan chat.Event {
 	return c.events
 }
 
@@ -34,7 +34,7 @@ func Connect(address string, port string, user string) (*Client, error) {
 	client := &Client{
 		name:   user,
 		conn:   connection,
-		events: make(chan api.Event),
+		events: make(chan chat.Event),
 	}
 
 	go handleRead(client)
@@ -50,6 +50,10 @@ func (c *Client) Send(bodyMessage string) error {
 	headers["sender"] = c.name
 
 	header := protocolchat.BuildHeader(headers)
+
+	if len(bodyMessage) > protocolchat.MaxBodySize {
+		return errors.New("El tamaño del mensaje excede el límite!.")
+	}
 
 	_, err := c.conn.Write([]byte(header + bodyMessage))
 

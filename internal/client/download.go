@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/lmmv9411/chago/internal/api"
+	"github.com/lmmv9411/chago/internal/chat"
 	"github.com/lmmv9411/chago/internal/protocolfile"
 )
 
@@ -68,12 +68,12 @@ func (c *Client) download(headers map[string]string) error {
 		filename: fileName,
 		events:   c.events,
 	}
-	c.events <- api.Event{
-		Kind:    api.ChatMessage,
+	c.events <- chat.Event{
+		Kind:    chat.ChatMessage,
 		Message: fmt.Sprintf("%s envio archivo: %s", sender, fileName),
 	}
 
-	server, err := NewConnection(c.conn.address, ":8081")
+	server, err := NewConnection(c.conn.address, "8081")
 
 	if err != nil {
 		return fmt.Errorf("Error al conectar a servidor files: %w", err)
@@ -101,8 +101,8 @@ func (c *Client) download(headers map[string]string) error {
 		return err
 	}
 
-	c.events <- api.Event{
-		Kind:       api.TransferDone,
+	c.events <- chat.Event{
+		Kind:       chat.TransferDone,
 		TransferId: progress.id,
 		FileName:   progress.filename,
 	}
