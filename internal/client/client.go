@@ -53,14 +53,20 @@ func handleRead(c *Client) {
 	for {
 		headers, _, err := protocolchat.ReadHeaders(c.conn.reader)
 		if err != nil {
-			c.events <- events.Event{Kind: events.Error, Message: fmt.Sprintf("%s\n", err.Error())}
+			c.events <- events.Event{
+				Kind:    events.Error,
+				Message: fmt.Sprintf("%s\n", err.Error()),
+			}
 			return
 		}
 
 		size, ok := headers["size"]
 
 		if !ok {
-			c.events <- events.Event{Kind: events.Error, Message: "header size no existe.\n"}
+			c.events <- events.Event{
+				Kind:    events.Error,
+				Message: "header size no existe.\n",
+			}
 			return
 		}
 
@@ -84,7 +90,9 @@ func handleRead(c *Client) {
 		kind, ok := headers["content-type"]
 
 		if !ok {
-			c.events <- events.Event{Kind: events.Error, Message: "header content-type no existe.\n"}
+			c.events <- events.Event{
+				Kind:    events.Error,
+				Message: "header content-type no existe.\n"}
 			return
 		}
 
@@ -111,16 +119,19 @@ func handleRead(c *Client) {
 
 			c.events <- events.Event{
 				Kind: events.ChatMessage,
-				Message: fmt.Sprintf("[%s]: %s",
-					headers["sender"],
-					string(buffer[:n])),
+				Message: fmt.Sprintf(
+					"[%s]: %s", headers["sender"], string(buffer[:n]),
+				),
 			}
 
 		case "file/notification":
 			go downloadFile(headers, c)
 		case "response":
 			if _, err := response(headers); err != nil {
-				c.events <- events.Event{Kind: events.Error, Message: fmt.Sprintf("%s\n", err.Error())}
+				c.events <- events.Event{
+					Kind:    events.Error,
+					Message: fmt.Sprintf("%s\n", err.Error()),
+				}
 				return
 				// } else {
 				// 	c.events <- chat.InconmingChatMsg(fmt.Sprintf("%s\n", *msg))
@@ -148,7 +159,10 @@ func handleWrite(c *Client) {
 			filePath := strings.TrimSpace(after)
 
 			if filePath == "" {
-				c.events <- events.Event{Kind: events.Error, Message: "Escribir la ruta del archivo"}
+				c.events <- events.Event{
+					Kind:    events.Error,
+					Message: "Escribir la ruta del archivo",
+				}
 				continue
 			}
 
@@ -166,7 +180,10 @@ func handleWrite(c *Client) {
 		_, err := c.conn.Write([]byte(header + bodyMessage))
 
 		if err != nil {
-			c.events <- events.Event{Kind: events.Error, Message: fmt.Sprintf("Error enviando mensaje: %s\n", err)}
+			c.events <- events.Event{
+				Kind:    events.Error,
+				Message: fmt.Sprintf("Error enviando mensaje: %s\n", err),
+			}
 			return
 		}
 

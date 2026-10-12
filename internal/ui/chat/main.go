@@ -30,10 +30,6 @@ type chatmodel struct {
 	events   chan events.Event
 }
 
-func initChatModel(outgoing chan<- string, events chan events.Event) chatmodel {
-	return initChatStyle(outgoing, events)
-}
-
 func waitForEvent(ev <-chan events.Event) tea.Cmd {
 	return func() tea.Msg {
 		event, ok := <-ev
@@ -142,7 +138,7 @@ func sendChatMessage(outgoing chan<- string, message string) tea.Cmd {
 }
 
 func Run(outdoing chan<- string, events chan events.Event) {
-	p := tea.NewProgram(initChatModel(outdoing, events), tea.WithAltScreen())
+	p := tea.NewProgram(initChatStyle(outdoing, events), tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error al ejecutar la aplicación: %v", err)
