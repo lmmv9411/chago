@@ -69,7 +69,7 @@ func (m *chatmodel) handleKey(msg tea.KeyMsg, cmds *[]tea.Cmd) (tea.Model, tea.C
 		m.appendMessage(fmt.Sprintf("[yo]: %s", v))
 		m.textinput.Reset()
 
-		return m, sendChatMessage(m.outgoing, v)
+		m.sendChatMessage(v)
 	case tea.KeyPgUp, tea.KeyPgDown:
 		m.viewport, cmd = m.viewport.Update(msg)
 		*cmds = append(*cmds, cmd)

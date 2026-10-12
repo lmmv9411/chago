@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/lmmv9411/chago/internal/api"
 	"github.com/lmmv9411/chago/internal/events"
 )
 
@@ -26,8 +27,8 @@ type chatmodel struct {
 	textinput textinput.Model
 	viewport  viewport.Model
 
-	outgoing chan<- string
-	events   chan events.Event
+	s      api.Api
+	events chan events.Event
 }
 
 func waitForEvent(ev <-chan events.Event) tea.Cmd {
@@ -130,17 +131,20 @@ func (m chatmodel) View() string {
 	return m.handleView()
 }
 
-func sendChatMessage(outgoing chan<- string, message string) tea.Cmd {
-	return func() tea.Msg {
-		outgoing <- message
-		return nil
-	}
+func (m *chatmodel) sendChatMessage(message string) {
+	m.s.Send(message)
 }
 
-func Run(outdoing chan<- string, events chan events.Event) {
-	p := tea.NewProgram(initChatStyle(outdoing, events), tea.WithAltScreen())
+func Run(s api.Api) error {
+
+	p := tea.NewProgram(
+		initChatStyle(s, s.Events()),
+		tea.WithAltScreen(),
+	)
 
 	if _, err := p.Run(); err != nil {
-		fmt.Printf("Error al ejecutar la aplicación: %v", err)
+		return fmt.Errorf("Error al ejecutar la aplicación: %v", err)
 	}
+
+	return nil
 }

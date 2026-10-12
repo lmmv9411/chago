@@ -1,8 +1,7 @@
 package ui
 
 import (
-	"fmt"
-	"os"
+	"errors"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/cursor"
@@ -218,24 +217,21 @@ func (l loginmodel) View() string {
 	return containerStyle.Render(strings.Join(viewSections, "\n"))
 }
 
-func LoginMain() *LoginData {
+func LoginMain() (data *LoginData, err error) {
 
 	p := tea.NewProgram(initLoginModel(), tea.WithAltScreen())
 
 	finalModel, err := p.Run()
 
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
-		os.Exit(1)
-		return nil
+		return nil, err
 	}
 
 	l, ok := finalModel.(loginmodel)
 	if !ok || !l.done {
-		fmt.Println("El formulario se cerró inesperadamente.")
-		return nil
+		return nil, errors.New("El formulario se cerró inesperadamente.")
 	}
 
-	return &l.result
+	return &l.result, nil
 
 }

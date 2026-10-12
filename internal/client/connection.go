@@ -6,8 +6,6 @@ import (
 	"net"
 	"sync"
 	"time"
-
-	"github.com/lmmv9411/chago/internal/events"
 )
 
 type Connection struct {
@@ -16,22 +14,6 @@ type Connection struct {
 	writer  *bufio.Writer
 	reader  *bufio.Reader
 	mu      sync.Mutex
-}
-
-type Client struct {
-	conn     *Connection
-	name     string
-	incoming chan string
-	events   chan events.Event
-}
-
-func NewClient(name string, conn *Connection) *Client {
-	return &Client{
-		name:     name,
-		conn:     conn,
-		incoming: make(chan string),
-		events:   make(chan events.Event),
-	}
 }
 
 func NewConnection(address string, port string) (connection *Connection, err error) {

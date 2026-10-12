@@ -1,191 +1,94 @@
 package client
 
 import (
+	"errors"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 
 	"github.com/lmmv9411/chago/internal/events"
 	"github.com/lmmv9411/chago/internal/protocolchat"
-	"github.com/lmmv9411/chago/internal/ui"
-	"github.com/lmmv9411/chago/internal/ui/chat"
 )
 
-func StartClient() {
+type Client struct {
+	conn   *Connection
+	name   string
+	events chan events.Event
+}
 
-	data := ui.LoginMain()
+func (c *Client) Events() chan events.Event {
+	return c.events
+}
 
-	if data == nil {
-		return
+func Connect(address string, port string, user string) (*Client, error) {
+
+	if user == "" {
+		return nil, errors.New("Usuario no puede esar vacío")
 	}
 
-	if data.Address == "" {
-		data.Address = "192.168.1.33"
-	}
-
-	if data.User == "" {
-		fmt.Println("Usuario no puede esar vacío")
-		return
-	}
-
-	server, err := NewConnection(data.Address, ":8080")
+	connection, err := NewConnection(address, port)
 
 	if err != nil {
-		fmt.Println("Error al conectar:", err)
-		return
+		return nil, err
 	}
 
-	defer server.conn.Close()
+	client := &Client{
+		name:   user,
+		conn:   connection,
+		events: make(chan events.Event),
+	}
 
-	client := NewClient(data.User, server)
-
-	fmt.Println("Conectado al servidor")
-
-	go handleWrite(client)
 	go handleRead(client)
 
-	chat.Run(client.incoming, client.events)
+	return client, nil
+
 }
-
-func handleRead(c *Client) {
-
-	for {
-		headers, _, err := protocolchat.ReadHeaders(c.conn.reader)
-		if err != nil {
-			c.events <- events.Event{
-				Kind:    events.Error,
-				Message: fmt.Sprintf("%s\n", err.Error()),
-			}
-			return
-		}
-
-		size, ok := headers["size"]
-
-		if !ok {
-			c.events <- events.Event{
-				Kind:    events.Error,
-				Message: "header size no existe.\n",
-			}
-			return
-		}
-
-		n, err := strconv.Atoi(size)
-		if err != nil {
-			c.events <- events.Event{
-				Kind:    events.Error,
-				Message: fmt.Sprintf("Error en cast de header size: %s\n", err),
-			}
-			return
-		}
-
-		if n < 0 {
-			c.events <- events.Event{
-				Kind:    events.Error,
-				Message: "header: 'size' valor negativo",
-			}
-			return
-		}
-
-		kind, ok := headers["content-type"]
-
-		if !ok {
-			c.events <- events.Event{
-				Kind:    events.Error,
-				Message: "header content-type no existe.\n"}
-			return
-		}
-
-		switch kind {
-		case "text/plain":
-
-			if n < 0 || n > protocolchat.MaxBodySize {
-				c.events <- events.Event{
-					Kind: events.Error,
-					Message: "Error: Size-Body declarado en headers" +
-						" rango < 0 o superior al límite.",
-				}
-				return
-			}
-
-			buffer := make([]byte, n)
-
-			n, err := io.ReadFull(c.conn.reader, buffer)
-
-			if err != nil {
-				c.events <- events.Event{Kind: events.Error, Message: err.Error()}
-				return
-			}
-
-			c.events <- events.Event{
-				Kind: events.ChatMessage,
-				Message: fmt.Sprintf(
-					"[%s]: %s", headers["sender"], string(buffer[:n]),
-				),
-			}
-
-		case "file/notification":
-			go downloadFile(headers, c)
-		case "response":
-			if _, err := response(headers); err != nil {
-				c.events <- events.Event{
-					Kind:    events.Error,
-					Message: fmt.Sprintf("%s\n", err.Error()),
-				}
-				return
-				// } else {
-				// 	c.events <- chat.InconmingChatMsg(fmt.Sprintf("%s\n", *msg))
-			}
-		default:
-			c.events <- events.Event{
-				Kind:    events.Error,
-				Message: "Error de cabezera 'content-type'= ¡no reconocido!\n",
-			}
-			return
-		}
-	}
-}
-
-func handleWrite(c *Client) {
-
+func (c *Client) Send(bodyMessage string) error {
 	headers := make(map[string]string)
 
-	for msg := range c.incoming {
+	if after, ok := strings.CutPrefix(bodyMessage, "/file"); ok {
 
-		bodyMessage := msg
+		filePath := strings.TrimSpace(after)
 
-		if after, ok := strings.CutPrefix(bodyMessage, "/file"); ok {
-
-			filePath := strings.TrimSpace(after)
-
-			if filePath == "" {
-				c.events <- events.Event{
-					Kind:    events.Error,
-					Message: "Escribir la ruta del archivo",
-				}
-				continue
-			}
-
-			go sendToServer(filePath, c)
-
-			continue
-		}
-
-		headers["content-type"] = "text/plain"
-		headers["size"] = strconv.Itoa(len(bodyMessage))
-		headers["sender"] = c.name
-
-		header := protocolchat.BuildHeader(headers)
-
-		_, err := c.conn.Write([]byte(header + bodyMessage))
-
-		if err != nil {
+		if filePath == "" {
 			c.events <- events.Event{
 				Kind:    events.Error,
-				Message: fmt.Sprintf("Error enviando mensaje: %s\n", err),
+				Message: "Escribir la ruta del archivo",
 			}
-			return
+			return nil
 		}
 
+		go func() {
+			if err := c.Upload(filePath); err != nil {
+				c.events <- events.Event{Kind: events.Error, Message: err.Error()}
+			}
+		}()
+
+		return nil
 	}
+
+	headers["content-type"] = "text/plain"
+	headers["size"] = strconv.Itoa(len(bodyMessage))
+	headers["sender"] = c.name
+
+	header := protocolchat.BuildHeader(headers)
+
+	_, err := c.conn.Write([]byte(header + bodyMessage))
+
+	if err != nil {
+		c.events <- events.Event{
+			Kind:    events.Error,
+			Message: fmt.Sprintf("Error enviando mensaje: %s\n", err),
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (c *Client) Close() error {
+	if err := c.conn.conn.Close(); err != nil {
+		return err
+	}
+	return nil
 }
