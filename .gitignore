@@ -4,6 +4,7 @@
 *.out
 *.app
 *.o
+.vscode
 
 uploads/
 downloads/
