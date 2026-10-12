@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/lmmv9411/chago/internal/events"
 )
 
 type (
@@ -26,21 +27,40 @@ type chatmodel struct {
 	viewport  viewport.Model
 
 	outgoing chan<- string
-	events   chan tea.Msg
+	events   chan events.Event
 }
 
-func initChatModel(outgoing chan<- string, events chan tea.Msg) chatmodel {
+func initChatModel(outgoing chan<- string, events chan events.Event) chatmodel {
 	return initChatStyle(outgoing, events)
 }
 
-func waitForEvent(events <-chan tea.Msg) tea.Cmd {
+func waitForEvent(ev <-chan events.Event) tea.Cmd {
 	return func() tea.Msg {
-		msg, ok := <-events
+		event, ok := <-ev
 
 		if !ok {
 			return nil
 		}
-		return msg
+
+		switch event.Kind {
+		case events.ChatMessage:
+			return IncomingChatMsg(event.Message)
+		case events.Error:
+			return ErrorChatMsg(event.Message)
+		case events.TransferDone:
+			return TransferDoneMsg{
+				id:       event.TransferId,
+				filename: event.FileName,
+			}
+		case events.TransferProgress:
+			return TransferProgressMsg{
+				id:       event.TransferId,
+				filename: event.FileName,
+				ratio:    event.Ratio,
+			}
+		}
+
+		return event
 	}
 }
 
@@ -121,7 +141,7 @@ func sendChatMessage(outgoing chan<- string, message string) tea.Cmd {
 	}
 }
 
-func Run(outdoing chan<- string, events chan tea.Msg) {
+func Run(outdoing chan<- string, events chan events.Event) {
 	p := tea.NewProgram(initChatModel(outdoing, events), tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {

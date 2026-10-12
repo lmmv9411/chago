@@ -10,11 +10,10 @@ import (
 	"strconv"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/lmmv9411/chago/internal/events"
 	"github.com/lmmv9411/chago/internal/protocolchat"
 	"github.com/lmmv9411/chago/internal/protocolfile"
 	"github.com/lmmv9411/chago/internal/serverfiles"
-	"github.com/lmmv9411/chago/internal/ui/chat"
 )
 
 func sendToServer(filePath string, client *Client) {
@@ -22,23 +21,19 @@ func sendToServer(filePath string, client *Client) {
 	info, err := os.Stat(filePath)
 
 	if err != nil {
-		client.events <- chat.ErrorChatMsg(
-			fmt.Sprintf("Error al acceder al archivo: %v", err),
-		)
+		client.events <- events.Event{Kind: events.Error, Message: fmt.Sprintf("Error al acceder al archivo: %v", err)}
 		return
 	}
 
 	if info.IsDir() {
-		client.events <- chat.ErrorChatMsg("Es un directorio")
+		client.events <- events.Event{Kind: events.Error, Message: "Es un directorio"}
 		return
 	}
 
 	file, err := os.Open(filePath)
 
 	if err != nil {
-		client.events <- chat.ErrorChatMsg(
-			fmt.Sprintf("Error al abrir el archivo: %v", err),
-		)
+		client.events <- events.Event{Kind: events.Error, Message: fmt.Sprintf("Error al abrir el archivo: %v", err)}
 		return
 	}
 
@@ -55,9 +50,7 @@ func sendToServer(filePath string, client *Client) {
 	server, err := NewConnection(client.conn.address, ":8081")
 
 	if err != nil {
-		client.events <- chat.ErrorChatMsg(
-			fmt.Sprintf("Error al conectar a servidor files: %v", err),
-		)
+		client.events <- events.Event{Kind: events.Error, Message: fmt.Sprintf("Error al conectar a servidor files: %v", err)}
 		return
 	}
 
@@ -66,14 +59,12 @@ func sendToServer(filePath string, client *Client) {
 	_, err = server.Write([]byte(headersStr))
 
 	if err != nil {
-		client.events <- chat.ErrorChatMsg(
-			fmt.Sprintf("Error al enviar header al servidor-files: %v", err),
-		)
+		client.events <- events.Event{Kind: events.Error, Message: fmt.Sprintf("Error al enviar header al servidor-files: %v", err)}
 		return
 	}
 
 	if _, err := isOk(server.reader); err != nil {
-		client.events <- chat.ErrorChatMsg(err.Error())
+		client.events <- events.Event{Kind: events.Error, Message: err.Error()}
 		return
 	}
 
@@ -88,18 +79,20 @@ func sendToServer(filePath string, client *Client) {
 	_, err = io.CopyN(progress, file, info.Size())
 
 	if err != nil {
-		client.events <- chat.ErrorChatMsg(
-			fmt.Sprintf("Error al enviar archivo al servidor-files: %v", err),
-		)
+		client.events <- events.Event{Kind: events.Error, Message: fmt.Sprintf("Error al enviar archivo al servidor-files: %v", err)}
 		return
 	}
 
 	if _, err := isOk(server.reader); err != nil {
-		client.events <- chat.ErrorChatMsg(err.Error())
+		client.events <- events.Event{Kind: events.Error, Message: err.Error()}
 		return
 	}
 
-	client.events <- chat.NewTransferDoneMsg(progress.id, progress.filename)
+	client.events <- events.Event{
+		Kind:       events.TransferDone,
+		TransferId: progress.id,
+		FileName:   progress.filename,
+	}
 
 	headers = make(map[string]string)
 	headers["content-type"] = "file/notification"
@@ -112,9 +105,7 @@ func sendToServer(filePath string, client *Client) {
 	_, err = client.conn.Write([]byte(header))
 
 	if err != nil {
-		client.events <- chat.ErrorChatMsg(
-			fmt.Sprintf("Error enviando file/notification: %v", err),
-		)
+		client.events <- events.Event{Kind: events.Error, Message: fmt.Sprintf("Error enviando file/notification: %v", err)}
 		return
 	}
 
@@ -127,28 +118,26 @@ func downloadFile(headers map[string]string, client *Client) {
 	fileName, ok := headers["filename"]
 
 	if !ok {
-		client.events <- chat.ErrorChatMsg("sin header filename")
+		client.events <- events.Event{Kind: events.Error, Message: "sin header filename"}
 		return
 	}
 
 	sender, ok := headers["sender"]
 
 	if !ok {
-		client.events <- chat.ErrorChatMsg("sin header sender")
+		client.events <- events.Event{Kind: events.Error, Message: "sin header sender"}
 		return
 	}
 
 	size, err := strconv.ParseInt(sizeS, 10, 64)
 
 	if err != nil {
-		client.events <- chat.ErrorChatMsg(
-			fmt.Sprintf("Error cast header size: %v", err),
-		)
+		client.events <- events.Event{Kind: events.Error, Message: fmt.Sprintf("Error cast header size: %v", err)}
 		return
 	}
 
 	if size < 0 || size > protocolfile.GiB {
-		client.events <- chat.ErrorChatMsg("Archivo excede tamaño permitido")
+		client.events <- events.Event{Kind: events.Error, Message: "Archivo excede tamaño permitido"}
 		return
 	}
 
@@ -156,18 +145,14 @@ func downloadFile(headers map[string]string, client *Client) {
 	currentDir, err := os.Getwd()
 
 	if err != nil {
-		client.events <- chat.ErrorChatMsg(
-			fmt.Sprintf("Error al obtener directorio: %v", err),
-		)
+		client.events <- events.Event{Kind: events.Error, Message: fmt.Sprintf("Error al obtener directorio: %v", err)}
 		return
 	}
 
 	err = os.MkdirAll(filepath.Join(currentDir, "downloads"), 0755)
 
 	if err != nil {
-		client.events <- chat.ErrorChatMsg(
-			fmt.Sprintf("Error al crear directorio: %v", err),
-		)
+		client.events <- events.Event{Kind: events.Error, Message: fmt.Sprintf("Error al crear directorio: %v", err)}
 		return
 	}
 
@@ -177,9 +162,7 @@ func downloadFile(headers map[string]string, client *Client) {
 	file, err := os.Create(filePath)
 
 	if err != nil {
-		client.events <- chat.ErrorChatMsg(
-			fmt.Sprintf("Error al crear archivo: %v", err),
-		)
+		client.events <- events.Event{Kind: events.Error, Message: fmt.Sprintf("Error al crear archivo: %v", err)}
 		return
 	}
 
@@ -192,16 +175,15 @@ func downloadFile(headers map[string]string, client *Client) {
 		filename: fileName,
 		events:   client.events,
 	}
-	client.events <- chat.IncomingChatMsg(
-		fmt.Sprintf("%s envio archivo: %s", sender, fileName),
-	)
+	client.events <- events.Event{
+		Kind:    events.ChatMessage,
+		Message: fmt.Sprintf("%s envio archivo: %s", sender, fileName),
+	}
 
 	server, err := NewConnection(client.conn.address, ":8081")
 
 	if err != nil {
-		client.events <- chat.ErrorChatMsg(
-			fmt.Sprintf("Error al conectar a servidor files: %v", err),
-		)
+		client.events <- events.Event{Kind: events.Error, Message: fmt.Sprintf("Error al conectar a servidor files: %v", err)}
 		return
 	}
 
@@ -214,27 +196,27 @@ func downloadFile(headers map[string]string, client *Client) {
 	_, err = server.conn.Write([]byte(header))
 
 	if err != nil {
-		client.events <- chat.ErrorChatMsg(
-			fmt.Sprintf("Error al enviar headers request: %v", err),
-		)
+		client.events <- events.Event{Kind: events.Error, Message: fmt.Sprintf("Error al enviar headers request: %v", err)}
 		return
 	}
 
 	_, err = io.CopyN(progress, server.conn, size)
 
 	if err != nil {
-		client.events <- chat.ErrorChatMsg(
-			fmt.Sprintf("Error en el stream de archivo: %v", err),
-		)
+		client.events <- events.Event{Kind: events.Error, Message: fmt.Sprintf("Error en el stream de archivo: %v", err)}
 		return
 	}
 
 	if _, err := isOk(server.reader); err != nil {
-		client.events <- chat.ErrorChatMsg(err.Error())
+		client.events <- events.Event{Kind: events.Error, Message: err.Error()}
 		return
 	}
 
-	client.events <- chat.NewTransferDoneMsg(progress.id, progress.filename)
+	client.events <- events.Event{
+		Kind:       events.TransferDone,
+		TransferId: progress.id,
+		FileName:   progress.filename,
+	}
 }
 
 func isOk(r *bufio.Reader) (*string, error) {
@@ -271,7 +253,7 @@ type ProgressWriter struct {
 	written        int64
 	id             string
 	filename       string
-	events         chan<- tea.Msg
+	events         chan<- events.Event
 	hasReported    bool
 	lastProgressAt time.Time
 }
@@ -291,11 +273,12 @@ func (p *ProgressWriter) Write(data []byte) (int, error) {
 
 		if !p.hasReported || now.Sub(p.lastProgressAt) >= 150*time.Millisecond || completed {
 
-			p.events <- chat.NewTransferProgressMsg(
-				p.id,
-				p.filename,
-				ratio,
-			)
+			p.events <- events.Event{
+				Kind:       events.TransferProgress,
+				TransferId: p.id,
+				FileName:   p.filename,
+				Ratio:      ratio,
+			}
 			p.lastProgressAt = now
 			p.hasReported = true
 		}

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/lmmv9411/chago/internal/events"
 )
 
 type Connection struct {
@@ -22,7 +22,7 @@ type Client struct {
 	conn     *Connection
 	name     string
 	incoming chan string
-	events   chan tea.Msg
+	events   chan events.Event
 }
 
 func NewClient(name string, conn *Connection) *Client {
@@ -30,7 +30,7 @@ func NewClient(name string, conn *Connection) *Client {
 		name:     name,
 		conn:     conn,
 		incoming: make(chan string),
-		events:   make(chan tea.Msg),
+		events:   make(chan events.Event),
 	}
 }
 
