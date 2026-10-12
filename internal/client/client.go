@@ -42,6 +42,7 @@ func Connect(address string, port string, user string) (*Client, error) {
 	return client, nil
 
 }
+
 func (c *Client) Send(bodyMessage string) error {
 	headers := make(map[string]string)
 

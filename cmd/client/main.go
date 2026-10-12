@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/lmmv9411/chago/internal/client"
-	ui "github.com/lmmv9411/chago/internal/ui/terminal"
+	"github.com/lmmv9411/chago/internal/ui/terminal"
 	"github.com/lmmv9411/chago/internal/ui/terminal/chat"
 )
 
@@ -17,7 +17,7 @@ func main() {
 }
 
 func run() error {
-	login, err := ui.LoginMain()
+	login, err := terminal.LoginMain()
 
 	if err != nil {
 		return err
