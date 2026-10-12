@@ -1,4 +1,4 @@
-package events
+package api
 
 type Kind uint8
 

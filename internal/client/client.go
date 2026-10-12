@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/lmmv9411/chago/internal/events"
+	"github.com/lmmv9411/chago/internal/api"
 	"github.com/lmmv9411/chago/internal/protocolchat"
 )
 
 type Client struct {
 	conn   *Connection
 	name   string
-	events chan events.Event
+	events chan api.Event
 }
 
-func (c *Client) Events() chan events.Event {
+func (c *Client) Events() chan api.Event {
 	return c.events
 }
 
@@ -34,7 +34,7 @@ func Connect(address string, port string, user string) (*Client, error) {
 	client := &Client{
 		name:   user,
 		conn:   connection,
-		events: make(chan events.Event),
+		events: make(chan api.Event),
 	}
 
 	go handleRead(client)

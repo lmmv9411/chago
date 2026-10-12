@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/lmmv9411/chago/internal/api"
-	"github.com/lmmv9411/chago/internal/events"
 )
 
 var (
@@ -45,7 +44,7 @@ var (
 	progressStyle = lipgloss.NewStyle().Padding(0, 1)
 )
 
-func initChatStyle(s api.Api, events chan events.Event) chatmodel {
+func initChatStyle(s api.Api, events chan api.Event) chatmodel {
 	ti := textinput.New()
 	ti.Placeholder = "Escribir mensaje y presionar Enter..."
 	ti.Prompt = "> "
@@ -65,9 +64,8 @@ func initChatStyle(s api.Api, events chan events.Event) chatmodel {
 
 		textinput: ti,
 		viewport:  vp,
-
-		s:      s,
-		events: events,
+		s:         s,
+		events:    events,
 	}
 }
 

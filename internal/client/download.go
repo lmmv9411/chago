@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/lmmv9411/chago/internal/events"
+	"github.com/lmmv9411/chago/internal/api"
 	"github.com/lmmv9411/chago/internal/protocolfile"
 )
 
@@ -68,8 +68,8 @@ func (c *Client) download(headers map[string]string) error {
 		filename: fileName,
 		events:   c.events,
 	}
-	c.events <- events.Event{
-		Kind:    events.ChatMessage,
+	c.events <- api.Event{
+		Kind:    api.ChatMessage,
 		Message: fmt.Sprintf("%s envio archivo: %s", sender, fileName),
 	}
 
@@ -101,8 +101,8 @@ func (c *Client) download(headers map[string]string) error {
 		return err
 	}
 
-	c.events <- events.Event{
-		Kind:       events.TransferDone,
+	c.events <- api.Event{
+		Kind:       api.TransferDone,
 		TransferId: progress.id,
 		FileName:   progress.filename,
 	}

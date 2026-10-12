@@ -8,7 +8,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/lmmv9411/chago/internal/events"
+	"github.com/lmmv9411/chago/internal/api"
 	"github.com/lmmv9411/chago/internal/protocolchat"
 	"github.com/lmmv9411/chago/internal/protocolfile"
 	"github.com/lmmv9411/chago/internal/serverfiles"
@@ -92,8 +92,8 @@ func (c *Client) Upload(filePath string) error {
 		return fmt.Errorf("Error enviando file/notification: %w", err)
 	}
 
-	c.events <- events.Event{
-		Kind:       events.TransferDone,
+	c.events <- api.Event{
+		Kind:       api.TransferDone,
 		TransferId: progress.id,
 		FileName:   progress.filename,
 	}

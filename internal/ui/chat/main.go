@@ -11,7 +11,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/lmmv9411/chago/internal/api"
-	"github.com/lmmv9411/chago/internal/events"
 )
 
 type (
@@ -28,10 +27,10 @@ type chatmodel struct {
 	viewport  viewport.Model
 
 	s      api.Api
-	events chan events.Event
+	events chan api.Event
 }
 
-func waitForEvent(ev chan events.Event) tea.Cmd {
+func waitForEvent(ev chan api.Event) tea.Cmd {
 	return func() tea.Msg {
 		event, ok := <-ev
 
@@ -40,16 +39,16 @@ func waitForEvent(ev chan events.Event) tea.Cmd {
 		}
 
 		switch event.Kind {
-		case events.ChatMessage:
+		case api.ChatMessage:
 			return IncomingChatMsg(event.Message)
-		case events.Error:
+		case api.Error:
 			return ErrorChatMsg(event.Message)
-		case events.TransferDone:
+		case api.TransferDone:
 			return TransferDoneMsg{
 				id:       event.TransferId,
 				filename: event.FileName,
 			}
-		case events.TransferProgress:
+		case api.TransferProgress:
 			return TransferProgressMsg{
 				id:       event.TransferId,
 				filename: event.FileName,
