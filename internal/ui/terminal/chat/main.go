@@ -26,13 +26,12 @@ type chatmodel struct {
 	textinput textinput.Model
 	viewport  viewport.Model
 
-	s      api.Api
-	events chan api.Event
+	s api.Api
 }
 
-func waitForEvent(ev chan api.Event) tea.Cmd {
+func waitForEvent(s api.Api) tea.Cmd {
 	return func() tea.Msg {
-		event, ok := <-ev
+		event, ok := <-s.Events()
 
 		if !ok {
 			return nil
@@ -63,7 +62,7 @@ func waitForEvent(ev chan api.Event) tea.Cmd {
 func (m chatmodel) Init() tea.Cmd {
 	return tea.Batch(
 		textarea.Blink,
-		waitForEvent(m.events),
+		waitForEvent(m.s),
 	)
 }
 
@@ -92,7 +91,7 @@ func (m chatmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg.(type) {
 	case ErrorChatMsg, TransferDoneMsg,
 		IncomingChatMsg, TransferProgressMsg:
-		cmds = append(cmds, waitForEvent(m.events))
+		cmds = append(cmds, waitForEvent(m.s))
 	}
 
 	m.textinput, cmd = m.textinput.Update(msg)
@@ -133,7 +132,7 @@ func (m chatmodel) View() string {
 func Run(s api.Api) error {
 
 	p := tea.NewProgram(
-		initChatStyle(s, s.Events()),
+		initModel(s),
 		tea.WithAltScreen(),
 	)
 

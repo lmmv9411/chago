@@ -44,7 +44,7 @@ var (
 	progressStyle = lipgloss.NewStyle().Padding(0, 1)
 )
 
-func initChatStyle(s api.Api, events chan api.Event) chatmodel {
+func initModel(s api.Api) chatmodel {
 	ti := textinput.New()
 	ti.Placeholder = "Escribir mensaje y presionar Enter..."
 	ti.Prompt = "> "
@@ -65,7 +65,6 @@ func initChatStyle(s api.Api, events chan api.Event) chatmodel {
 		textinput: ti,
 		viewport:  vp,
 		s:         s,
-		events:    events,
 	}
 }
 

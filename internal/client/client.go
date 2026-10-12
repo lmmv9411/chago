@@ -15,7 +15,7 @@ type Client struct {
 	events chan api.Event
 }
 
-func (c *Client) Events() chan api.Event {
+func (c *Client) Events() <-chan api.Event {
 	return c.events
 }
 
