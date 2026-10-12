@@ -43,5 +43,11 @@ func NewConnection(address string, port string) (connection *Connection, err err
 func (c *Connection) Write(p []byte) (n int, err error) {
 	defer c.mu.Unlock()
 	c.mu.Lock()
-	return c.conn.Write(p)
+
+	if n, err := c.writer.Write(p); err != nil {
+		return n, err
+	}
+
+	return n, c.writer.Flush()
+
 }

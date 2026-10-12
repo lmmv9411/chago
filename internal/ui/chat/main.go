@@ -31,7 +31,7 @@ type chatmodel struct {
 	events chan events.Event
 }
 
-func waitForEvent(ev <-chan events.Event) tea.Cmd {
+func waitForEvent(ev chan events.Event) tea.Cmd {
 	return func() tea.Msg {
 		event, ok := <-ev
 

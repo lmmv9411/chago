@@ -59,7 +59,7 @@ func (c *Client) Send(bodyMessage string) error {
 		}
 
 		go func() {
-			if err := c.Upload(filePath); err != nil {
+			if err := c.upload(filePath); err != nil {
 				c.events <- events.Event{Kind: events.Error, Message: err.Error()}
 			}
 		}()

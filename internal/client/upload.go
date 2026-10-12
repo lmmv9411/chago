@@ -14,7 +14,7 @@ import (
 	"github.com/lmmv9411/chago/internal/serverfiles"
 )
 
-func (c *Client) Upload(filePath string) error {
+func (c *Client) upload(filePath string) error {
 
 	info, err := os.Stat(filePath)
 
@@ -78,12 +78,6 @@ func (c *Client) Upload(filePath string) error {
 		return err
 	}
 
-	c.events <- events.Event{
-		Kind:       events.TransferDone,
-		TransferId: progress.id,
-		FileName:   progress.filename,
-	}
-
 	headers = make(map[string]string)
 	headers["content-type"] = "file/notification"
 	headers["size"] = strconv.FormatInt(info.Size(), 10)
@@ -96,6 +90,12 @@ func (c *Client) Upload(filePath string) error {
 
 	if err != nil {
 		return fmt.Errorf("Error enviando file/notification: %w", err)
+	}
+
+	c.events <- events.Event{
+		Kind:       events.TransferDone,
+		TransferId: progress.id,
+		FileName:   progress.filename,
 	}
 
 	return nil

@@ -87,7 +87,7 @@ func handleRead(c *Client) {
 
 		case "file/notification":
 			go func() {
-				if err := c.Download(headers); err != nil {
+				if err := c.download(headers); err != nil {
 					c.events <- events.Event{Kind: events.Error, Message: err.Error()}
 				}
 			}()

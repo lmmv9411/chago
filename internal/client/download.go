@@ -11,7 +11,7 @@ import (
 	"github.com/lmmv9411/chago/internal/protocolfile"
 )
 
-func (c *Client) Download(headers map[string]string) error {
+func (c *Client) download(headers map[string]string) error {
 
 	sizeS := headers["size"]
 
