@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"github.com/lmmv9411/chago/internal/client"
-	"github.com/lmmv9411/chago/internal/ui"
-	"github.com/lmmv9411/chago/internal/ui/chat"
+	ui "github.com/lmmv9411/chago/internal/ui/terminal"
+	"github.com/lmmv9411/chago/internal/ui/terminal/chat"
 )
 
 func main() {
