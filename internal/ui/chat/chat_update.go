@@ -69,13 +69,37 @@ func (m *chatmodel) handleKey(msg tea.KeyMsg, cmds *[]tea.Cmd) (tea.Model, tea.C
 		m.appendMessage(fmt.Sprintf("[yo]: %s", v))
 		m.textinput.Reset()
 
-		m.sendChatMessage(v)
+		if after, ok := strings.CutPrefix(v, "/file"); ok {
+			filePath := strings.TrimSpace(after)
+			if filePath == "" {
+				*cmds = append(*cmds, func() tea.Msg {
+					return ErrorChatMsg("Escribir la ruta del archivo")
+				})
+			} else {
+				*cmds = append(*cmds, runClientOperation(func() error {
+					return m.s.Upload(filePath)
+				}))
+			}
+		} else {
+			*cmds = append(*cmds, runClientOperation(func() error {
+				return m.s.Send(v)
+			}))
+		}
 	case tea.KeyPgUp, tea.KeyPgDown:
 		m.viewport, cmd = m.viewport.Update(msg)
 		*cmds = append(*cmds, cmd)
 	}
 
 	return nil, nil
+}
+
+func runClientOperation(operation func() error) tea.Cmd {
+	return func() tea.Msg {
+		if err := operation(); err != nil {
+			return ErrorChatMsg(err.Error())
+		}
+		return nil
+	}
 }
 
 func (m *chatmodel) handleTransferProgress(msg TransferProgressMsg, cmds *[]tea.Cmd) {

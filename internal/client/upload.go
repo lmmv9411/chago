@@ -14,7 +14,7 @@ import (
 	"github.com/lmmv9411/chago/internal/serverfiles"
 )
 
-func (c *Client) upload(filePath string) error {
+func (c *Client) Upload(filePath string) error {
 
 	info, err := os.Stat(filePath)
 

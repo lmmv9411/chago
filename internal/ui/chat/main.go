@@ -131,10 +131,6 @@ func (m chatmodel) View() string {
 	return m.handleView()
 }
 
-func (m *chatmodel) sendChatMessage(message string) {
-	m.s.Send(message)
-}
-
 func Run(s api.Api) error {
 
 	p := tea.NewProgram(
