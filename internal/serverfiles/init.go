@@ -46,7 +46,7 @@ func handleConnection(c *Connection) {
 	if err != nil {
 		msg := "Error en lecutra headers: " + err.Error()
 		fmt.Println(msg)
-		c.SendError(msg, RequestError)
+		c.SendError(msg, protocolfile.RequestError)
 		return
 	}
 
@@ -55,7 +55,7 @@ func handleConnection(c *Connection) {
 	if !ok {
 		msg := "falta header: 'filename'"
 		fmt.Println(msg)
-		c.SendError(msg, RequestError)
+		c.SendError(msg, protocolfile.RequestError)
 		return
 	}
 
@@ -64,7 +64,7 @@ func handleConnection(c *Connection) {
 	if !ok {
 		msg := "falta header: 'size'"
 		fmt.Println(msg)
-		c.SendError(msg, RequestError)
+		c.SendError(msg, protocolfile.RequestError)
 		return
 	}
 
@@ -73,7 +73,7 @@ func handleConnection(c *Connection) {
 	if !ok {
 		msg := "falta header: 'method'"
 		fmt.Println(msg)
-		c.SendError(msg, RequestError)
+		c.SendError(msg, protocolfile.RequestError)
 		return
 	}
 
@@ -82,14 +82,14 @@ func handleConnection(c *Connection) {
 	if err != nil {
 		msg := "Error en parsing de size"
 		fmt.Println(msg)
-		c.SendError(msg, RequestError)
+		c.SendError(msg, protocolfile.RequestError)
 		return
 	}
 
 	if size < 0 || size > protocolfile.MaxBodySize {
 		msg := "Archivo con tamaño no permitido"
 		fmt.Println(msg)
-		c.SendError(msg, RequestError)
+		c.SendError(msg, protocolfile.RequestError)
 
 		return
 	}
@@ -100,7 +100,7 @@ func handleConnection(c *Connection) {
 	if err != nil {
 		msg := "Error al obtener directorio"
 		fmt.Println(msg, err)
-		c.SendError(msg, InternalError)
+		c.SendError(msg, protocolfile.InternalError)
 		return
 	}
 
@@ -109,7 +109,7 @@ func handleConnection(c *Connection) {
 	if err != nil {
 		msg := "Error al crear directorio"
 		fmt.Println(msg, err)
-		c.SendError(msg, InternalError)
+		c.SendError(msg, protocolfile.InternalError)
 		return
 	}
 
@@ -124,7 +124,7 @@ func handleConnection(c *Connection) {
 		if err != nil {
 			msg := fmt.Sprintf("Error al crear archivo %s, %s\n", fileName, err.Error())
 			fmt.Println(msg)
-			c.SendError(msg, InternalError)
+			c.SendError(msg, protocolfile.InternalError)
 			return
 		}
 
@@ -137,7 +137,7 @@ func handleConnection(c *Connection) {
 		if err != nil {
 			msg := fmt.Sprintf("Error en stream %s, %s\n", fileName, err.Error())
 			fmt.Println(msg)
-			c.SendError(msg, InternalError)
+			c.SendError(msg, protocolfile.InternalError)
 			return
 		}
 
@@ -150,7 +150,7 @@ func handleConnection(c *Connection) {
 		if err != nil {
 			msg := fmt.Sprintf("Error al leer archivo %s, %s\n", fileName, err.Error())
 			fmt.Println(msg)
-			c.SendError(msg, InternalError)
+			c.SendError(msg, protocolfile.InternalError)
 			return
 		}
 
@@ -161,7 +161,7 @@ func handleConnection(c *Connection) {
 		if err != nil {
 			msg := fmt.Sprintln("Error al acceder a info de archivo: " + err.Error())
 			fmt.Println(msg)
-			c.SendError(msg, InternalError)
+			c.SendError(msg, protocolfile.InternalError)
 			return
 		}
 
@@ -170,7 +170,7 @@ func handleConnection(c *Connection) {
 		if err != nil {
 			msg := fmt.Sprintf("Error de stream %s, %s\n", fileName, err.Error())
 			fmt.Println(msg)
-			c.SendError(msg, InternalError)
+			c.SendError(msg, protocolfile.InternalError)
 			return
 		}
 
@@ -178,7 +178,7 @@ func handleConnection(c *Connection) {
 	default:
 		msg := fmt.Sprintln("Método no existe: ", method)
 		fmt.Println(msg)
-		c.SendError(msg, InternalError)
+		c.SendError(msg, protocolfile.InternalError)
 	}
 
 }

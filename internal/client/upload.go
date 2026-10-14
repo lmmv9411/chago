@@ -11,7 +11,6 @@ import (
 	"github.com/lmmv9411/chago/internal/chat"
 	"github.com/lmmv9411/chago/internal/protocolchat"
 	"github.com/lmmv9411/chago/internal/protocolfile"
-	"github.com/lmmv9411/chago/internal/serverfiles"
 )
 
 func (c *Client) Upload(filePath string) error {
@@ -111,7 +110,7 @@ func isOk(r *bufio.Reader) (*string, error) {
 		return nil, fmt.Errorf("status inválido en respuesta del servidor: %v\n", err)
 	}
 
-	if serverfiles.Status(code) != serverfiles.Ok {
+	if protocolfile.Status(code) != protocolfile.Ok {
 		return nil, fmt.Errorf("servidor respondió %s: %s", status, headers["message"])
 	}
 

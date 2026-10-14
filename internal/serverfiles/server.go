@@ -8,14 +8,6 @@ import (
 	"github.com/lmmv9411/chago/internal/protocolfile"
 )
 
-type Status int
-
-const (
-	Ok Status = iota
-	RequestError
-	InternalError
-)
-
 type Server struct {
 	Listener net.Listener
 }
@@ -68,15 +60,15 @@ func (s *Server) Accept() (*Connection, error) {
 	return connection, nil
 }
 
-func (s *Connection) SendError(msg string, code Status) error {
+func (s *Connection) SendError(msg string, code protocolfile.Status) error {
 	return s.send(msg, code)
 }
 
 func (s *Connection) SendOk(msg string) error {
-	return s.send(msg, Ok)
+	return s.send(msg, protocolfile.Ok)
 }
 
-func (s *Connection) send(msg string, code Status) error {
+func (s *Connection) send(msg string, code protocolfile.Status) error {
 
 	headers := make(map[string]string)
 

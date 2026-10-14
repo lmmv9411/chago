@@ -7,6 +7,14 @@ import (
 	"strings"
 )
 
+type Status int
+
+const (
+	Ok Status = iota
+	RequestError
+	InternalError
+)
+
 const (
 	KiB = 1024
 	MiB = 1024 * KiB
