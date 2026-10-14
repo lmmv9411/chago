@@ -20,13 +20,11 @@ func (c *Client) Events() <-chan chat.Event {
 }
 
 func Connect(address string, port string, user string) (*Client, error) {
-
 	if user == "" {
-		return nil, errors.New("Usuario no puede esar vacío")
+		return nil, errors.New("usuario no puede esar vacío")
 	}
 
 	connection, err := NewConnection(address, port)
-
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +38,6 @@ func Connect(address string, port string, user string) (*Client, error) {
 	go handleRead(client)
 
 	return client, nil
-
 }
 
 func (c *Client) Send(bodyMessage string) error {
@@ -53,13 +50,12 @@ func (c *Client) Send(bodyMessage string) error {
 	header := protocolchat.BuildHeader(headers)
 
 	if len(bodyMessage) > protocolchat.MaxBodySize {
-		return errors.New("El tamaño del mensaje excede el límite!.")
+		return errors.New("el tamaño del mensaje excede el límite")
 	}
 
 	_, err := c.conn.Write([]byte(header + bodyMessage))
-
 	if err != nil {
-		return fmt.Errorf("Error enviando mensaje: %w", err)
+		return fmt.Errorf("error enviando mensaje: %w", err)
 	}
 
 	return nil

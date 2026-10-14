@@ -15,9 +15,7 @@ import (
 )
 
 func (c *Client) Upload(filePath string) error {
-
 	info, err := os.Stat(filePath)
-
 	if err != nil {
 		return fmt.Errorf("Error al acceder al archivo: %w", err)
 	}
@@ -27,7 +25,6 @@ func (c *Client) Upload(filePath string) error {
 	}
 
 	file, err := os.Open(filePath)
-
 	if err != nil {
 		return fmt.Errorf("Error al abrir el archivo: %w", err)
 	}
@@ -43,7 +40,6 @@ func (c *Client) Upload(filePath string) error {
 	headersStr := protocolfile.BuildHeader(headers)
 
 	server, err := NewConnection(c.conn.address, "8081")
-
 	if err != nil {
 		return fmt.Errorf("Error al conectar a servidor files: %w", err)
 	}
@@ -51,7 +47,6 @@ func (c *Client) Upload(filePath string) error {
 	defer server.conn.Close()
 
 	_, err = server.Write([]byte(headersStr))
-
 	if err != nil {
 		return fmt.Errorf("Error al enviar header al servidor-files: %w", err)
 	}
@@ -69,7 +64,6 @@ func (c *Client) Upload(filePath string) error {
 	}
 
 	_, err = io.CopyN(progress, file, info.Size())
-
 	if err != nil {
 		return fmt.Errorf("Error al enviar archivo al servidor-files: %w", err)
 	}
@@ -87,7 +81,6 @@ func (c *Client) Upload(filePath string) error {
 	header := protocolchat.BuildHeader(headers)
 
 	_, err = c.conn.Write([]byte(header))
-
 	if err != nil {
 		return fmt.Errorf("Error enviando file/notification: %w", err)
 	}
@@ -102,11 +95,9 @@ func (c *Client) Upload(filePath string) error {
 }
 
 func isOk(r *bufio.Reader) (*string, error) {
-
 	headers, err := protocolfile.ReadHeaders(r)
-
 	if err != nil {
-		return nil, fmt.Errorf("Error al leer respuesta del servidor: %v\n", err)
+		return nil, fmt.Errorf("error al leer respuesta del servidor: %v\n", err)
 	}
 
 	status, ok := headers["status"]
@@ -116,7 +107,6 @@ func isOk(r *bufio.Reader) (*string, error) {
 	}
 
 	code, err := strconv.Atoi(status)
-
 	if err != nil {
 		return nil, fmt.Errorf("status inválido en respuesta del servidor: %v\n", err)
 	}
