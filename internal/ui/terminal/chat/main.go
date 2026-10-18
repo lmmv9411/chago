@@ -79,7 +79,7 @@ func (m chatmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case IncomingChatMsg:
 		m.appendMessage(string(msg))
 	case TransferProgressMsg:
-		m.handleTransferProgress(msg, &cmds)
+		m.handleTransferProgress(msg)
 	case TransferDoneMsg:
 		m.handleTransferDone(msg)
 	case ErrorChatMsg:

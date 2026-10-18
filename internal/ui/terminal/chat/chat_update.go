@@ -102,7 +102,7 @@ func runClientOperation(operation func() error) tea.Cmd {
 	}
 }
 
-func (m *chatmodel) handleTransferProgress(msg TransferProgressMsg, cmds *[]tea.Cmd) {
+func (m *chatmodel) handleTransferProgress(msg TransferProgressMsg) {
 	t, exist := m.transfers[msg.id]
 	if !exist {
 		prog := progress.New(
@@ -114,6 +114,4 @@ func (m *chatmodel) handleTransferProgress(msg TransferProgressMsg, cmds *[]tea.
 		m.transfersOrder = append(m.transfersOrder, msg.id)
 	}
 	t.percent = msg.ratio
-	cmd := t.progress.SetPercent(t.percent)
-	*cmds = append(*cmds, cmd)
 }
