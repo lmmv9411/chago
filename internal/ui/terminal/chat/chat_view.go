@@ -64,7 +64,7 @@ func initModel(s chat.Client) chatmodel {
 
 		textinput: ti,
 		viewport:  vp,
-		s:         s,
+		client:    s,
 	}
 }
 
@@ -91,11 +91,15 @@ func (m chatmodel) handleView() string {
 		}
 	}
 
-	viewSections = append(
-		viewSections,
-		inputBoxStyle.Render(m.textinput.View()),
-		"(Presiona Ctrl+C o Esc para salir)",
-	)
+	if m.disconnected {
+		viewSections = append(viewSections, "(Desconectado. Presiona una tecla para salir.)")
+	} else {
+		viewSections = append(
+			viewSections,
+			inputBoxStyle.Render(m.textinput.View()),
+			"(Presiona Ctrl+C o Esc para salir)",
+		)
+	}
 
 	return strings.Join(viewSections, "\n")
 }

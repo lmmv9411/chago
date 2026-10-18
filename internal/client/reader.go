@@ -1,23 +1,31 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 
 	"github.com/lmmv9411/chago/internal/chat"
 	"github.com/lmmv9411/chago/internal/protocolchat"
 )
 
 func handleRead(c *Client) {
-	defer c.signalDone()
+	defer c.Close()
 
 	for {
 		headers, _, err := protocolchat.ReadHeaders(c.conn.reader)
 		if err != nil {
+			message := strings.TrimSpace(err.Error())
+			if errors.Is(err, io.EOF) {
+				message = "el servidor cerró la conexión (EOF)"
+			} else {
+				message = fmt.Sprintf("se interrumpió la conexión con el servidor: %s", message)
+			}
 			c.emit(chat.Event{
 				Kind:    chat.Error,
-				Message: fmt.Sprintf("%s\n", err.Error()),
+				Message: message,
 			})
 			return
 		}

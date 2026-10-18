@@ -14,8 +14,9 @@ import (
 )
 
 type (
-	IncomingChatMsg string
-	ErrorChatMsg    string
+	IncomingChatMsg       string
+	ErrorChatMsg          string
+	ClientDisconnectedMsg struct{}
 )
 
 type chatmodel struct {
@@ -26,20 +27,21 @@ type chatmodel struct {
 	textinput textinput.Model
 	viewport  viewport.Model
 
-	s chat.Client
+	client       chat.Client
+	disconnected bool
 }
 
-func waitForEvent(s chat.Client) tea.Cmd {
+func waitForEvent(client chat.Client) tea.Cmd {
 	return func() tea.Msg {
 		var event chat.Event
 		select {
-		case received, ok := <-s.Events():
+		case received, ok := <-client.Events():
 			if !ok {
-				return nil
+				return ClientDisconnectedMsg{}
 			}
 			event = received
-		case <-s.Done():
-			return nil
+		case <-client.Done():
+			return ClientDisconnectedMsg{}
 		}
 
 		switch event.Kind {
@@ -67,7 +69,7 @@ func waitForEvent(s chat.Client) tea.Cmd {
 func (m chatmodel) Init() tea.Cmd {
 	return tea.Batch(
 		textarea.Blink,
-		waitForEvent(m.s),
+		waitForEvent(m.client),
 	)
 }
 
@@ -81,6 +83,9 @@ func (m chatmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m != nil {
 			return m, c
 		}
+	case ClientDisconnectedMsg:
+		m.disconnected = true
+		m.appendMessage("[Sistema]: Conexión finalizada. El motivo del cierre aparece arriba.")
 	case IncomingChatMsg:
 		m.appendMessage(string(msg))
 	case TransferProgressMsg:
@@ -96,7 +101,7 @@ func (m chatmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg.(type) {
 	case ErrorChatMsg, TransferDoneMsg,
 		IncomingChatMsg, TransferProgressMsg:
-		cmds = append(cmds, waitForEvent(m.s))
+		cmds = append(cmds, waitForEvent(m.client))
 	}
 
 	m.textinput, cmd = m.textinput.Update(msg)

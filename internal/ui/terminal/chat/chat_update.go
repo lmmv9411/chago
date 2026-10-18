@@ -56,6 +56,10 @@ func (m *chatmodel) handleKey(msg tea.KeyMsg, cmds *[]tea.Cmd) (tea.Model, tea.C
 
 	var cmd tea.Cmd
 
+	if m.disconnected {
+		return m, tea.Quit
+	}
+
 	switch msg.Type {
 	case tea.KeyCtrlC, tea.KeyEsc:
 		return m, tea.Quit
@@ -76,12 +80,12 @@ func (m *chatmodel) handleKey(msg tea.KeyMsg, cmds *[]tea.Cmd) (tea.Model, tea.C
 				})
 			} else {
 				*cmds = append(*cmds, runClientOperation(func() error {
-					return m.s.Upload(filePath)
+					return m.client.Upload(filePath)
 				}))
 			}
 		} else {
 			*cmds = append(*cmds, runClientOperation(func() error {
-				return m.s.Send(v)
+				return m.client.Send(v)
 			}))
 		}
 	case tea.KeyPgUp, tea.KeyPgDown:

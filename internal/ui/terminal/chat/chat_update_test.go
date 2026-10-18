@@ -1,6 +1,31 @@
 package chat
 
-import "testing"
+import (
+	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+func TestClientDisconnectWaitsForAcknowledgement(t *testing.T) {
+	model := chatmodel{}
+
+	updated, cmd := model.Update(ClientDisconnectedMsg{})
+	if cmd != nil {
+		t.Fatal("disconnect quit immediately instead of allowing the reason to be read")
+	}
+	model = updated.(chatmodel)
+	if !model.disconnected {
+		t.Fatal("chat model did not enter disconnected state")
+	}
+
+	_, cmd = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("pressing a key after disconnect did not return a quit command")
+	}
+	if msg := cmd(); msg != (tea.QuitMsg{}) {
+		t.Fatalf("disconnect command returned %T, want tea.QuitMsg", msg)
+	}
+}
 
 func TestParseFileCommand(t *testing.T) {
 	tests := []struct {
