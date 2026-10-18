@@ -23,15 +23,15 @@ func ReadHeaders(r *bufio.Reader) (map[string]string, *strings.Builder, error) {
 	var header strings.Builder
 
 	for {
-		line, err := r.ReadString('\n')
-
+		lineBytes, err := r.ReadSlice('\n')
+		if len(lineBytes) > MaxHeaderLineSize || errors.Is(err, bufio.ErrBufferFull) {
+			return nil, nil, errors.New("Máximo tamaño de linea header alcanzado.")
+		}
 		if err != nil {
 			return nil, nil, err
 		}
 
-		if len(line) > MaxHeaderLineSize {
-			return nil, nil, errors.New("Máximo tamaño de linea header alcanzado.")
-		}
+		line := string(lineBytes)
 
 		header.WriteString(line)
 

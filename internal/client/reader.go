@@ -10,50 +10,52 @@ import (
 )
 
 func handleRead(c *Client) {
+	defer c.signalDone()
 
 	for {
 		headers, _, err := protocolchat.ReadHeaders(c.conn.reader)
 		if err != nil {
-			c.events <- chat.Event{
+			c.emit(chat.Event{
 				Kind:    chat.Error,
 				Message: fmt.Sprintf("%s\n", err.Error()),
-			}
+			})
 			return
 		}
 
 		size, ok := headers["size"]
 
 		if !ok {
-			c.events <- chat.Event{
+			c.emit(chat.Event{
 				Kind:    chat.Error,
 				Message: "header size no existe.\n",
-			}
+			})
 			return
 		}
 
 		n, err := strconv.Atoi(size)
 		if err != nil {
-			c.events <- chat.Event{
+			c.emit(chat.Event{
 				Kind:    chat.Error,
 				Message: fmt.Sprintf("Error en cast de header size: %s\n", err),
-			}
+			})
 			return
 		}
 
 		if n < 0 {
-			c.events <- chat.Event{
+			c.emit(chat.Event{
 				Kind:    chat.Error,
 				Message: "header: 'size' valor negativo",
-			}
+			})
 			return
 		}
 
 		kind, ok := headers["content-type"]
 
 		if !ok {
-			c.events <- chat.Event{
+			c.emit(chat.Event{
 				Kind:    chat.Error,
-				Message: "header content-type no existe.\n"}
+				Message: "header content-type no existe.\n",
+			})
 			return
 		}
 
@@ -61,11 +63,11 @@ func handleRead(c *Client) {
 		case "text/plain":
 
 			if n < 0 || n > protocolchat.MaxBodySize {
-				c.events <- chat.Event{
+				c.emit(chat.Event{
 					Kind: chat.Error,
 					Message: "Error: Size-Body declarado en headers" +
 						" rango < 0 o superior al límite.",
-				}
+				})
 				return
 			}
 
@@ -74,38 +76,36 @@ func handleRead(c *Client) {
 			n, err := io.ReadFull(c.conn.reader, buffer)
 
 			if err != nil {
-				c.events <- chat.Event{Kind: chat.Error, Message: err.Error()}
+				c.emit(chat.Event{Kind: chat.Error, Message: err.Error()})
 				return
 			}
 
-			c.events <- chat.Event{
+			c.emit(chat.Event{
 				Kind: chat.ChatMessage,
 				Message: fmt.Sprintf(
 					"[%s]: %s", headers["sender"], string(buffer[:n]),
 				),
-			}
+			})
 
 		case "file/notification":
 			go func() {
 				if err := c.download(headers); err != nil {
-					c.events <- chat.Event{Kind: chat.Error, Message: err.Error()}
+					c.emit(chat.Event{Kind: chat.Error, Message: err.Error()})
 				}
 			}()
 		case "response":
 			if _, err := response(headers); err != nil {
-				c.events <- chat.Event{
+				c.emit(chat.Event{
 					Kind:    chat.Error,
 					Message: fmt.Sprintf("%s\n", err.Error()),
-				}
+				})
 				return
-				// } else {
-				// 	c.events <- chat.InconmingChatMsg(fmt.Sprintf("%s\n", *msg))
 			}
 		default:
-			c.events <- chat.Event{
+			c.emit(chat.Event{
 				Kind:    chat.Error,
 				Message: "Error de cabezera 'content-type'= ¡no reconocido!\n",
-			}
+			})
 			return
 		}
 	}

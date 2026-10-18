@@ -22,6 +22,9 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	if login.Cancelled {
+		return nil
+	}
 
 	c, err := client.Connect(login.Address, "8080", login.User)
 

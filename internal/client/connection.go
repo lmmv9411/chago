@@ -55,3 +55,17 @@ func (c *Connection) Write(p []byte) (n int, err error) {
 	return n, c.writer.Flush()
 
 }
+
+func closeConnectionOnDone(done <-chan struct{}, conn net.Conn) func() {
+	stopped := make(chan struct{})
+	go func() {
+		select {
+		case <-done:
+			_ = conn.Close()
+		case <-stopped:
+		}
+	}()
+	return func() {
+		close(stopped)
+	}
+}

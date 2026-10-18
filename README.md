@@ -105,10 +105,14 @@ Al recibir una notificación de archivo, el cliente descarga automáticamente el
 - `uploads/`: directorio relativo al directorio de trabajo del proceso del servidor de archivos.
 - `downloads/`: directorio relativo al directorio de trabajo del proceso cliente.
 - El servicio de archivos acepta transferencias de hasta 1 GiB.
+- El servidor de chat admite hasta 256 clientes conectados y el de archivos hasta 16 transferencias activas.
 - Los mensajes de chat tienen un tamaño máximo de 1 KiB.
+- Los nombres de usuario admiten hasta 64 bytes.
+- Las descargas se guardan temporalmente y reemplazan el archivo de destino solo al completarse.
+- Las cargas del servidor también se publican solo al completarse; una transferencia interrumpida no reemplaza el archivo existente.
 
-Los directorios de almacenamiento se crean si no existen. Los archivos con el mismo nombre se guardan usando ese nombre, por lo que una transferencia posterior puede reemplazar un archivo existente.
+Los directorios de almacenamiento se crean si no existen. Los archivos con el mismo nombre se guardan usando ese nombre, por lo que una carga posterior completada puede reemplazar un archivo existente.
 
 ## Red y seguridad
 
-Los servidores escuchan en todas las interfaces de red (`:8080` y `:8081`). Asegúrate de que los puertos sean accesibles desde los clientes y de que las reglas de firewall permitan las conexiones necesarias. El proyecto está pensado para pruebas o redes de confianza; no implementa autenticación ni cifrado del tráfico.
+Los servidores escuchan en todas las interfaces de red (`:8080` y `:8081`). Asegúrate de que los puertos sean accesibles desde los clientes y de que las reglas de firewall permitan las conexiones necesarias. El proyecto está pensado para pruebas o redes de confianza; no implementa autenticación ni cifrado del tráfico. Cualquier equipo con acceso a esos puertos puede enviar mensajes y subir o descargar archivos; las cargas con nombres repetidos pueden reemplazar archivos existentes.

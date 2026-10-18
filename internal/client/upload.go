@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/lmmv9411/chago/internal/chat"
 	"github.com/lmmv9411/chago/internal/protocolchat"
@@ -19,8 +20,14 @@ func (c *Client) Upload(filePath string) error {
 		return fmt.Errorf("Error al acceder al archivo: %w", err)
 	}
 
-	if info.IsDir() {
-		return fmt.Errorf("Es un directorio")
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("la ruta no es un archivo regular")
+	}
+	if strings.ContainsAny(info.Name(), "\r\n") {
+		return fmt.Errorf("el nombre del archivo contiene caracteres no permitidos")
+	}
+	if info.Size() > protocolfile.MaxBodySize {
+		return fmt.Errorf("el archivo excede el límite de %d bytes", protocolfile.MaxBodySize)
 	}
 
 	file, err := os.Open(filePath)
@@ -44,6 +51,8 @@ func (c *Client) Upload(filePath string) error {
 	}
 
 	defer server.conn.Close()
+	stopWatching := closeConnectionOnDone(c.done, server.conn)
+	defer stopWatching()
 
 	_, err = server.Write([]byte(headersStr))
 	if err != nil {
@@ -57,9 +66,9 @@ func (c *Client) Upload(filePath string) error {
 	progress := &ProgressWriter{
 		writer:   server.conn,
 		total:    info.Size(),
-		id:       "upload:" + filePath,
+		id:       c.newTransferID("upload"),
 		filename: info.Name(),
-		events:   c.events,
+		emit:     c.emit,
 	}
 
 	_, err = io.CopyN(progress, file, info.Size())
@@ -84,11 +93,11 @@ func (c *Client) Upload(filePath string) error {
 		return fmt.Errorf("Error enviando file/notification: %w", err)
 	}
 
-	c.events <- chat.Event{
+	c.emit(chat.Event{
 		Kind:       chat.TransferDone,
 		TransferId: progress.id,
 		FileName:   progress.filename,
-	}
+	})
 
 	return nil
 }

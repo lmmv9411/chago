@@ -13,7 +13,7 @@ type ProgressWriter struct {
 	written        int64
 	id             string
 	filename       string
-	events         chan<- chat.Event
+	emit           func(chat.Event)
 	hasReported    bool
 	lastProgressAt time.Time
 }
@@ -33,12 +33,12 @@ func (p *ProgressWriter) Write(data []byte) (int, error) {
 
 		if !p.hasReported || now.Sub(p.lastProgressAt) >= 150*time.Millisecond || completed {
 
-			p.events <- chat.Event{
+			p.emit(chat.Event{
 				Kind:       chat.TransferProgress,
 				TransferId: p.id,
 				FileName:   p.filename,
 				Ratio:      ratio,
-			}
+			})
 			p.lastProgressAt = now
 			p.hasReported = true
 		}

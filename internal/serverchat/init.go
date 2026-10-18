@@ -1,20 +1,26 @@
 package serverchat
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"net"
+	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
+	"unicode"
 
 	"github.com/lmmv9411/chago/internal/protocolchat"
+	"github.com/lmmv9411/chago/internal/protocolfile"
 )
 
-func StartServer() {
+func StartServer() error {
 
 	s, err := NewServer("tcp", ":8080")
 
 	if err != nil {
-		fmt.Println("Error al iniciar el servidor:", err)
-		return
+		return fmt.Errorf("error al iniciar el servidor de chat: %w", err)
 	}
 
 	defer s.CloseListener()
@@ -24,13 +30,31 @@ func StartServer() {
 	events := make(chan Event, 100)
 	go server(events)
 
+	var backoff time.Duration
 	for {
+
 		conn, err := s.Accept()
 
 		if err != nil {
-			fmt.Println("Error al aceptar la conexión:", err)
-			continue
+			if errors.Is(err, net.ErrClosed) {
+				return nil
+			}
+			if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
+				if backoff == 0 {
+					backoff = 5 * time.Millisecond
+				} else {
+					backoff *= 2
+				}
+				if backoff > time.Second {
+					backoff = time.Second
+				}
+				fmt.Println("Error temporal al aceptar conexión:", err)
+				time.Sleep(backoff)
+				continue
+			}
+			return fmt.Errorf("error al aceptar conexión de chat: %w", err)
 		}
+		backoff = 0
 
 		e := Event{
 			kind:    connection,
@@ -43,6 +67,8 @@ func StartServer() {
 		go handleConnection(conn, events)
 	}
 }
+
+const maxClients = 256
 
 func server(events chan Event) {
 
@@ -61,11 +87,34 @@ func server(events chan Event) {
 		delete(users, address)
 	}
 
+	broadcast := func(event Event) {
+		for address, client := range users {
+			if address == event.address {
+				continue
+			}
+			select {
+			case client.in <- &Outgoing{message: event.message}:
+			default:
+				fmt.Printf("Cola llena: desconectando cliente %s\n", address)
+				disconnect(address)
+			}
+		}
+	}
+
 	for event := range events {
 
 		switch event.kind {
 
 		case connection:
+			if len(users) >= maxClients {
+				if err := event.conn.SendError("servidor lleno", RequestError); err != nil {
+					fmt.Println("Error rechazando cliente:", err)
+				}
+				if err := event.conn.CloseConn(); err != nil {
+					fmt.Println("Error cerrando cliente rechazado:", err)
+				}
+				break
+			}
 
 			newClient := &Client{
 				conn:    event.conn,
@@ -78,26 +127,24 @@ func server(events chan Event) {
 
 			go worker(newClient, events)
 
+			body := "nuevo usuario conectado"
+			headers := map[string]string{
+				"content-type": "text/plain",
+				"size":         strconv.Itoa(len(body)),
+				"sender":       "servidor",
+			}
+			broadcast(Event{
+				kind:    message,
+				address: event.address,
+				message: protocolchat.BuildHeader(headers) + body,
+			})
+
 		case disconnection:
 
 			disconnect(event.address)
 
 		case message:
-			for address, client := range users {
-				if address == event.address {
-					continue
-				}
-				select {
-				case client.in <- &Outgoing{message: event.message}:
-				default:
-					fmt.Printf(
-						"Cola llena: desconectando cliente %s\n",
-						address,
-					)
-					disconnect(address)
-				}
-
-			}
+			broadcast(event)
 
 		}
 	}
@@ -106,23 +153,12 @@ func server(events chan Event) {
 func handleConnection(conn *Connection, events chan<- Event) {
 
 	address := conn.RemoteAddress()
-
-	bodyMessage := "nuevo usuario conectado"
-
-	fmt.Printf("%s -> %s\n", bodyMessage, address)
-
-	headers := make(map[string]string)
-
-	headers["content-type"] = "text/plain"
-	headers["size"] = strconv.Itoa(len(bodyMessage))
-	headers["sender"] = "servidor"
-
-	payload := conn.BuildHeader(headers)
-
-	events <- Event{
-		kind:    message,
-		address: address,
-		message: payload + bodyMessage,
+	reject := func(msg string, code Status) {
+		fmt.Println(msg)
+		if err := conn.SendError(msg, code); err != nil {
+			fmt.Println("Error enviando respuesta de error:", err)
+		}
+		events <- Event{kind: disconnection, address: address}
 	}
 
 	for {
@@ -135,37 +171,29 @@ func handleConnection(conn *Connection, events chan<- Event) {
 
 			if err == io.EOF {
 				println("Usuario desconectado: " + address)
+			} else {
+				fmt.Printf("Error leyendo de %s: %v\n", address, err)
 			}
 
-			fmt.Println(err)
 			return
 		}
 
 		sender, ok := headers["sender"]
 
 		if !ok {
-			msg := "falta header 'Sender' en petición"
-			fmt.Println(msg)
-			conn.SendError(msg, RequestError)
-			events <- Event{kind: disconnection, address: address}
+			reject("falta header 'sender' en petición", RequestError)
 			return
 		}
 
-		if len(sender) > protocolchat.MaxSenderSize {
-			msg := "Valor de header 'sender' de header excede limite tamaño"
-			fmt.Println(msg)
-			conn.SendError(msg, RequestError)
-			events <- Event{kind: disconnection, address: address}
+		if len(sender) > protocolchat.MaxSenderSize || containsControl(sender) {
+			reject("valor de header 'sender' inválido", RequestError)
 			return
 		}
 
 		contentType, ok := headers["content-type"]
 
 		if !ok {
-			msg := "Sin header 'content-type'"
-			fmt.Println(msg)
-			conn.SendError(msg, RequestError)
-			events <- Event{kind: disconnection, address: address}
+			reject("sin header 'content-type'", RequestError)
 			return
 		}
 
@@ -175,18 +203,12 @@ func handleConnection(conn *Connection, events chan<- Event) {
 			size, err := strconv.Atoi(headers["size"])
 
 			if err != nil {
-				msg := "Error en cast de header size: " + err.Error()
-				fmt.Println(msg)
-				conn.SendError(msg, RequestError)
-				events <- Event{kind: disconnection, address: address}
+				reject("error en header size: "+err.Error(), RequestError)
 				return
 			}
 
 			if size < 0 || size > protocolchat.MaxBodySize {
-				msg := "Body mensaje excede tamaño limite."
-				fmt.Println(msg)
-				conn.SendError(msg, RequestError)
-				events <- Event{kind: disconnection, address: address}
+				reject("body del mensaje excede el límite", RequestError)
 				return
 			}
 
@@ -195,25 +217,27 @@ func handleConnection(conn *Connection, events chan<- Event) {
 			_, err = io.ReadFull(conn.Reader, buffer)
 
 			if err != nil {
-				msg := "Error leyendo buffer body: " + err.Error()
-				fmt.Println(msg)
-				conn.SendError(msg, InternalError)
-				events <- Event{kind: disconnection, address: address}
+				reject("error leyendo el body: "+err.Error(), InternalError)
 				return
 			}
 
-			body := string(buffer)
-			header.WriteString(body)
+			body := sanitizeMessage(string(buffer))
+			headers["size"] = strconv.Itoa(len(body))
 
 			events <- Event{
 				kind:    message,
-				message: header.String(),
+				message: protocolchat.BuildHeader(headers) + body,
 				address: address,
 			}
 
 			//fmt.Printf("%s: %s\n", sender, body)
 
 		case "file/notification":
+			if err := validateFileNotification(headers); err != nil {
+				msg := "Notificación de archivo inválida: " + err.Error()
+				reject(msg, RequestError)
+				return
+			}
 			events <- Event{
 				kind:    message,
 				message: header.String(),
@@ -221,22 +245,47 @@ func handleConnection(conn *Connection, events chan<- Event) {
 			}
 			fmt.Printf("%s: %s\n", sender, "Notificacion archivo: ")
 		default:
-			msg := "Content-type desconocido: " + contentType
-			fmt.Println(msg)
-			conn.SendError(msg, RequestError)
-			events <- Event{kind: disconnection, address: address}
+			reject("content-type desconocido: "+contentType, RequestError)
 			return
 		}
 
 		if err := conn.SendOk("Mensaje enviado"); err != nil {
-			fmt.Println("Error enviando respuesta:", err)
-			events <- Event{
-				kind:    disconnection,
-				address: address,
-			}
+			fmt.Printf("Error enviando respuesta a %s: %v\n", address, err)
+			events <- Event{kind: disconnection, address: address}
 			return
 		}
 
 	}
+}
 
+func validateFileNotification(headers map[string]string) error {
+	filename, ok := headers["filename"]
+	if !ok || filename == "" || filename == "." || filename == ".." ||
+		filepath.Base(filename) != filename || strings.ContainsAny(filename, "/\\:") ||
+		containsControl(filename) {
+		return fmt.Errorf("nombre de archivo inválido")
+	}
+
+	size, err := strconv.ParseInt(headers["size"], 10, 64)
+	if err != nil {
+		return fmt.Errorf("tamaño inválido: %w", err)
+	}
+	if size < 0 || size > protocolfile.MaxBodySize {
+		return fmt.Errorf("tamaño fuera del límite permitido")
+	}
+
+	return nil
+}
+
+func containsControl(value string) bool {
+	return strings.IndexFunc(value, unicode.IsControl) >= 0
+}
+
+func sanitizeMessage(message string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) && r != '\n' {
+			return ' '
+		}
+		return r
+	}, message)
 }

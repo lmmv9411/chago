@@ -31,9 +31,14 @@ type chatmodel struct {
 
 func waitForEvent(s chat.Client) tea.Cmd {
 	return func() tea.Msg {
-		event, ok := <-s.Events()
-
-		if !ok {
+		var event chat.Event
+		select {
+		case received, ok := <-s.Events():
+			if !ok {
+				return nil
+			}
+			event = received
+		case <-s.Done():
 			return nil
 		}
 
@@ -53,9 +58,9 @@ func waitForEvent(s chat.Client) tea.Cmd {
 				filename: event.FileName,
 				ratio:    event.Ratio,
 			}
+		default:
+			return ErrorChatMsg("Evento recibido con tipo desconocido.")
 		}
-
-		return event
 	}
 }
 
@@ -115,7 +120,7 @@ func (m *chatmodel) refreshViewport() {
 }
 
 func (m *chatmodel) appendMessage(msg string) {
-	if strings.HasPrefix(msg, "[yo]:") {
+	if strings.HasPrefix(msg, "[Tú]:") {
 		msg = messageStyle.Render(msg)
 	} else {
 		msg = messageOtherStyle.Render(msg)

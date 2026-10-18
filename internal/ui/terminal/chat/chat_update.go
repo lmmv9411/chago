@@ -66,11 +66,10 @@ func (m *chatmodel) handleKey(msg tea.KeyMsg, cmds *[]tea.Cmd) (tea.Model, tea.C
 			return m, nil
 		}
 
-		m.appendMessage(fmt.Sprintf("[yo]: %s", v))
+		m.appendMessage(fmt.Sprintf("[Tú]: %s", v))
 		m.textinput.Reset()
 
-		if after, ok := strings.CutPrefix(v, "/file"); ok {
-			filePath := strings.TrimSpace(after)
+		if filePath, isFileCommand := parseFileCommand(v); isFileCommand {
 			if filePath == "" {
 				*cmds = append(*cmds, func() tea.Msg {
 					return ErrorChatMsg("Escribir la ruta del archivo")
@@ -91,6 +90,14 @@ func (m *chatmodel) handleKey(msg tea.KeyMsg, cmds *[]tea.Cmd) (tea.Model, tea.C
 	}
 
 	return nil, nil
+}
+
+func parseFileCommand(message string) (string, bool) {
+	fields := strings.Fields(message)
+	if len(fields) == 0 || fields[0] != "/file" {
+		return "", false
+	}
+	return strings.TrimSpace(strings.TrimPrefix(message, fields[0])), true
 }
 
 func runClientOperation(operation func() error) tea.Cmd {

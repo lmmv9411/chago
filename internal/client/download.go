@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/lmmv9411/chago/internal/chat"
 	"github.com/lmmv9411/chago/internal/protocolfile"
@@ -18,6 +19,9 @@ func (c *Client) download(headers map[string]string) error {
 
 	if !ok {
 		return fmt.Errorf("sin header filename")
+	}
+	if strings.ContainsAny(fileName, "\r\n") {
+		return fmt.Errorf("nombre de archivo inválido")
 	}
 
 	sender, ok := headers["sender"]
@@ -46,28 +50,33 @@ func (c *Client) download(headers map[string]string) error {
 		return fmt.Errorf("error al crear directorio: %w", err)
 	}
 
-	safeFilename := filepath.Base(fileName)
+	safeFilename := filepath.Base(strings.ReplaceAll(fileName, `\`, "/"))
+	if safeFilename == "." || safeFilename == ".." || strings.TrimSpace(safeFilename) == "" {
+		return fmt.Errorf("nombre de archivo inválido")
+	}
 	filePath := filepath.Join(currentDir, "downloads", safeFilename)
 
-	file, err := os.Create(filePath)
+	file, err := os.CreateTemp(filepath.Dir(filePath), ".chago-download-*")
 	if err != nil {
 		return fmt.Errorf("Error al crear archivo: %w", err)
 	}
 
+	tempPath := file.Name()
+	defer os.Remove(tempPath)
 	defer file.Close()
 
 	progress := &ProgressWriter{
 		writer:   file,
 		total:    size,
-		id:       "download:" + sender + ":" + fileName,
+		id:       c.newTransferID("download"),
 		filename: fileName,
-		events:   c.events,
+		emit:     c.emit,
 	}
 
-	c.events <- chat.Event{
+	c.emit(chat.Event{
 		Kind:    chat.ChatMessage,
 		Message: fmt.Sprintf("[%s]: ↓ %s", sender, fileName),
-	}
+	})
 
 	server, err := NewConnection(c.conn.address, "8081")
 	if err != nil {
@@ -75,6 +84,8 @@ func (c *Client) download(headers map[string]string) error {
 	}
 
 	defer server.conn.Close()
+	stopWatching := closeConnectionOnDone(c.done, server.conn)
+	defer stopWatching()
 
 	headers["method"] = "download"
 
@@ -94,10 +105,20 @@ func (c *Client) download(headers map[string]string) error {
 		return err
 	}
 
-	c.events <- chat.Event{
+	if err := file.Sync(); err != nil {
+		return fmt.Errorf("error al guardar archivo descargado: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("error al cerrar archivo descargado: %w", err)
+	}
+	if err := os.Rename(tempPath, filePath); err != nil {
+		return fmt.Errorf("error al publicar archivo descargado: %w", err)
+	}
+
+	c.emit(chat.Event{
 		Kind:       chat.TransferDone,
 		TransferId: progress.id,
 		FileName:   progress.filename,
-	}
+	})
 	return nil
 }

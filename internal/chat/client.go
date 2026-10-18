@@ -5,4 +5,5 @@ type Client interface {
 	Upload(path string) error
 	Close() error
 	Events() <-chan Event
+	Done() <-chan struct{}
 }

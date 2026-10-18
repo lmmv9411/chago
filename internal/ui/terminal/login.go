@@ -55,7 +55,7 @@ type loginmodel struct {
 type LoginData struct {
 	Address   string
 	User      string
-	cancelled bool
+	Cancelled bool
 }
 
 func initLoginModel() loginmodel {
@@ -97,6 +97,8 @@ func (l loginmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type {
 
 		case tea.KeyCtrlC, tea.KeyEsc:
+			l.done = true
+			l.result = LoginData{Cancelled: true}
 			return l, tea.Quit
 
 		case tea.KeyTab, tea.KeyShiftTab, tea.KeyDown, tea.KeyUp:
@@ -131,9 +133,8 @@ func (l loginmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				data := LoginData{
-					Address:   strings.TrimSpace(l.address.Value()),
-					User:      strings.TrimSpace(l.user.Value()),
-					cancelled: false,
+					Address: strings.TrimSpace(l.address.Value()),
+					User:    strings.TrimSpace(l.user.Value()),
 				}
 
 				l.done = true
@@ -142,6 +143,7 @@ func (l loginmodel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return l, tea.Quit
 			case focusCancel:
 				l.done = true
+				l.result = LoginData{Cancelled: true}
 				return l, tea.Quit
 			}
 		default:

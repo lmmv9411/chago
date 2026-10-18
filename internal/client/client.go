@@ -4,24 +4,43 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/lmmv9411/chago/internal/chat"
 	"github.com/lmmv9411/chago/internal/protocolchat"
 )
 
 type Client struct {
-	conn   *Connection
-	name   string
-	events chan chat.Event
+	conn      *Connection
+	name      string
+	events    chan chat.Event
+	done      chan struct{}
+	doneOnce  sync.Once
+	closeOnce sync.Once
+	closeErr  error
+	nextID    atomic.Uint64
 }
 
 func (c *Client) Events() <-chan chat.Event {
 	return c.events
 }
 
+func (c *Client) Done() <-chan struct{} {
+	return c.done
+}
+
 func Connect(address string, port string, user string) (*Client, error) {
+	user = strings.TrimSpace(user)
 	if user == "" {
-		return nil, errors.New("usuario no puede esar vacío")
+		return nil, errors.New("el usuario no puede estar vacío")
+	}
+	if len(user) > protocolchat.MaxSenderSize {
+		return nil, fmt.Errorf("el nombre de usuario excede %d bytes", protocolchat.MaxSenderSize)
+	}
+	if strings.ContainsAny(user, "\r\n") {
+		return nil, errors.New("el nombre de usuario contiene caracteres no permitidos")
 	}
 
 	connection, err := NewConnection(address, port)
@@ -33,6 +52,7 @@ func Connect(address string, port string, user string) (*Client, error) {
 		name:   user,
 		conn:   connection,
 		events: make(chan chat.Event),
+		done:   make(chan struct{}),
 	}
 
 	go handleRead(client)
@@ -62,8 +82,26 @@ func (c *Client) Send(bodyMessage string) error {
 }
 
 func (c *Client) Close() error {
-	if err := c.conn.conn.Close(); err != nil {
-		return err
+	c.signalDone()
+	c.closeOnce.Do(func() {
+		c.closeErr = c.conn.conn.Close()
+	})
+	return c.closeErr
+}
+
+func (c *Client) signalDone() {
+	c.doneOnce.Do(func() {
+		close(c.done)
+	})
+}
+
+func (c *Client) emit(event chat.Event) {
+	select {
+	case c.events <- event:
+	case <-c.done:
 	}
-	return nil
+}
+
+func (c *Client) newTransferID(direction string) string {
+	return fmt.Sprintf("%s:%d", direction, c.nextID.Add(1))
 }
