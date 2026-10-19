@@ -17,29 +17,29 @@ import (
 
 func StartServer() error {
 
-	s, err := NewServer("tcp", ":8080")
+	server, err := NewServer("tcp", ":8080")
 
 	if err != nil {
 		return fmt.Errorf("error al iniciar el servidor de chat: %w", err)
 	}
 
-	defer s.CloseListener()
+	defer server.CloseListener()
 
 	fmt.Println("Servidor chat escuchando en el puerto 8080...")
 
 	events := make(chan Event, 100)
-	go server(events)
+	go eventLoop(events)
 
 	var backoff time.Duration
 	for {
 
-		conn, err := s.Accept()
+		conn, err := server.Accept()
 
 		if err != nil {
 			if errors.Is(err, net.ErrClosed) {
 				return nil
 			}
-			if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
+			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 				if backoff == 0 {
 					backoff = 5 * time.Millisecond
 				} else {
@@ -70,7 +70,7 @@ func StartServer() error {
 
 const maxClients = 256
 
-func server(events chan Event) {
+func eventLoop(events chan Event) {
 
 	users := make(map[string]*Client)
 
@@ -153,6 +153,7 @@ func server(events chan Event) {
 func handleConnection(conn *Connection, events chan<- Event) {
 
 	address := conn.RemoteAddress()
+
 	reject := func(msg string, code Status) {
 		fmt.Println(msg)
 		if err := conn.SendError(msg, code); err != nil {

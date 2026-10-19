@@ -20,6 +20,7 @@ func (c *Client) download(headers map[string]string) error {
 	if !ok {
 		return fmt.Errorf("sin header filename")
 	}
+
 	if strings.ContainsAny(fileName, "\r\n") {
 		return fmt.Errorf("nombre de archivo inválido")
 	}
@@ -83,7 +84,17 @@ func (c *Client) download(headers map[string]string) error {
 		return fmt.Errorf("error al conectar a servidor files: %w", err)
 	}
 
-	defer server.conn.Close()
+	defer func() {
+		if err := server.conn.Close(); err != nil {
+			c.emit(chat.Event{
+				Message: fmt.Sprintf(
+					"Error al cerrar conexion de servidor files %s",
+					err),
+				Kind: chat.Error,
+			})
+		}
+	}()
+
 	stopWatching := closeConnectionOnDone(c.done, server.conn)
 	defer stopWatching()
 
@@ -93,7 +104,7 @@ func (c *Client) download(headers map[string]string) error {
 
 	_, err = server.conn.Write([]byte(header))
 	if err != nil {
-		return fmt.Errorf("Error al enviar headers request: %w", err)
+		return fmt.Errorf("error al enviar headers request: %w", err)
 	}
 
 	_, err = io.CopyN(progress, server.conn, size)

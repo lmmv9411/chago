@@ -17,7 +17,7 @@ import (
 func (c *Client) Upload(filePath string) error {
 	info, err := os.Stat(filePath)
 	if err != nil {
-		return fmt.Errorf("Error al acceder al archivo: %w", err)
+		return fmt.Errorf("error al acceder al archivo: %w", err)
 	}
 
 	if !info.Mode().IsRegular() {
@@ -32,10 +32,17 @@ func (c *Client) Upload(filePath string) error {
 
 	file, err := os.Open(filePath)
 	if err != nil {
-		return fmt.Errorf("Error al abrir el archivo: %w", err)
+		return fmt.Errorf("error al abrir el archivo: %w", err)
 	}
 
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			c.emit(chat.Event{
+				Message: fmt.Sprintf("Error al cerrar file upload %s", err),
+				Kind:    chat.Error,
+			})
+		}
+	}()
 
 	headers := make(map[string]string)
 
@@ -47,7 +54,7 @@ func (c *Client) Upload(filePath string) error {
 
 	server, err := NewConnection(c.conn.address, "8081")
 	if err != nil {
-		return fmt.Errorf("Error al conectar a servidor files: %w", err)
+		return fmt.Errorf("error al conectar a servidor files: %w", err)
 	}
 
 	defer server.conn.Close()
@@ -56,7 +63,7 @@ func (c *Client) Upload(filePath string) error {
 
 	_, err = server.Write([]byte(headersStr))
 	if err != nil {
-		return fmt.Errorf("Error al enviar header al servidor-files: %w", err)
+		return fmt.Errorf("error al enviar header al servidor-files: %w", err)
 	}
 
 	if _, err := isOk(server.reader); err != nil {
@@ -73,7 +80,7 @@ func (c *Client) Upload(filePath string) error {
 
 	_, err = io.CopyN(progress, file, info.Size())
 	if err != nil {
-		return fmt.Errorf("Error al enviar archivo al servidor-files: %w", err)
+		return fmt.Errorf("error al enviar archivo al servidor-files: %w", err)
 	}
 
 	if _, err := isOk(server.reader); err != nil {
